@@ -17,9 +17,9 @@ scope = 50
 white = (255, 255, 255)
 black = (0, 0, 0)
 dark_magenta_a = (139, 0, 139, 255/2)
-dark_blue_a = (0, 0, 139, 255/2)
+red_a = (255, 0, 0, 255/4)
+# dark_blue_a = (0, 0, 139, 255/2)
 # dark_blue = (0, 0, 139, 255)
-red_a = (255, 0, 0, 255/2)
 # deep_pink_a = (255, 20, 147, 255/2)
 
 
@@ -355,8 +355,7 @@ def mark_squares(x_y: list, color: tuple):
         window.blit(square, (c[0] * scope + 100, c[1] * scope + 100))
 
 
-def check_step_arrow(x: int, y: int, directions: list) -> set:
-    array = set()
+def check_step_arrow(x: int, y: int, array: set, directions: list):
     for i in directions:
         new_x = x + digit2delta[i][0]
         new_y = y + digit2delta[i][1]
@@ -364,19 +363,19 @@ def check_step_arrow(x: int, y: int, directions: list) -> set:
         if 0 <= new_x < len(areaSquares) and \
            0 <= new_y < len(areaSquares):
             if areaSquares[new_y][new_x][0] == "a1" and coordinates not in array:
-                array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
             elif areaSquares[new_y][new_x][0] == "a2" and coordinates not in array:
-                array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
             elif areaSquares[new_y][new_x][0] == "a3" and coordinates not in array:
-                array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
             elif areaSquares[new_y][new_x][0] == "a4" and coordinates not in array:
-                array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
             elif areaSquares[new_y][new_x][0] == "a5" and coordinates not in array:
-                array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
             elif areaSquares[new_y][new_x][0] == "a6" and coordinates not in array:
-                array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
             elif areaSquares[new_y][new_x][0] == "a7" and coordinates not in array:
-                array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
             elif areaSquares[new_y][new_x][0] == "2" and coordinates not in array:
                 new_x = new_x + digit2delta[i][0]
                 new_y = new_y + digit2delta[i][1]
@@ -384,14 +383,16 @@ def check_step_arrow(x: int, y: int, directions: list) -> set:
                 array.add(coordinates)
             elif coordinates not in array:
                 array.add(coordinates)
-    return array
+    print(coordinates)
 
 
 def check_step(x: int, y: int):
-    mark_squares([(x, y)], red_a)
     array = set()
-    if areaSquares[y][x][0] == "h":
-        array.union(check_step_arrow(x, y, areaSquares[y][x][1]))
+    if 0 <= x < len(areaSquares) and \
+            0 <= y < len(areaSquares) and \
+            areaSquares[y][x][0] == "h":
+        mark_squares([(x, y)], red_a)
+        check_step_arrow(x, y, array, areaSquares[y][x][1])
     else:
         for i in range(1, 9):
             new_x = x + digit2delta[i][0]
@@ -399,20 +400,21 @@ def check_step(x: int, y: int):
             coordinates = (new_x, new_y)
             if 0 <= new_x < len(areaSquares) and \
                0 <= new_y < len(areaSquares):
+                mark_squares([(x, y)], red_a)
                 if areaSquares[new_y][new_x][0] == "a1" and coordinates not in array:
-                    array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
                 elif areaSquares[new_y][new_x][0] == "a2" and coordinates not in array:
-                    array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
                 elif areaSquares[new_y][new_x][0] == "a3" and coordinates not in array:
-                    array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
                 elif areaSquares[new_y][new_x][0] == "a4" and coordinates not in array:
-                    array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
                 elif areaSquares[new_y][new_x][0] == "a5" and coordinates not in array:
-                    array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
                 elif areaSquares[new_y][new_x][0] == "a6" and coordinates not in array:
-                    array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
                 elif areaSquares[new_y][new_x][0] == "a7" and coordinates not in array:
-                    array.union(check_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1]))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
                 elif areaSquares[new_y][new_x][0] == "2" and coordinates not in array:
                     new_x = new_x + digit2delta[i][0]
                     new_y = new_y + digit2delta[i][1]
@@ -420,6 +422,7 @@ def check_step(x: int, y: int):
                     array.add(coordinates)
                 elif coordinates not in array:
                     array.add(coordinates)
+                print(coordinates)
     show_area_cnsl(list(array), "Строка", ps="ТЕСТ")
     mark_squares(list(array), dark_magenta_a)
 
