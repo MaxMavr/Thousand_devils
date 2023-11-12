@@ -6,19 +6,6 @@ import pygame
 # Нужно сделать:
 # 1) починить выбор клеток (Иногда не выбираются клетки после стрелок)
 # {Функции: check_step, check_step_arrow}
-# Blb djehufgwe
-# Blb djehufgwe
-# Blb djehufgwe
-# Blb djehufgwe
-# Blb djehufgwe# Blb djehufgwe# Blb djehufgwe# Blb djehufgwe
-# Blb djehufgwe
-# Blb djehufgwe
-# Blb djehufgwe
-
-
-
-
-
 
 window_height = 1000
 window_width = window_height * 16 / 9
