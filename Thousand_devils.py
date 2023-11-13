@@ -358,11 +358,10 @@ def mark_fill_squares(x_y: list, color: tuple):
 
 
 def check_step_arrow(x: int, y: int, array: list, directions: list):
-    time.sleep(1/2)
     mark_outline_rectangle(x, y, out)
     pygame.display.flip()
 
-    print(f"Проверка стрелки: {x}, {y} ———> {array}")
+    print(f"Проверка стрелки:    {x}, {y} ———> {array}")
     for delta in directions:
         new_x = x + digit2delta[delta][0]
         new_y = y + digit2delta[delta][1]
@@ -401,11 +400,10 @@ def check_step_arrow(x: int, y: int, array: list, directions: list):
 
 
 def check_step(x: int, y: int, delta: int, array: list):
-    time.sleep(1 / 2)
     mark_outline_rectangle(x, y, out)
     pygame.display.flip()
 
-    print(f"Проверка шага: {x}, {y} ———> {array}")
+    print(f"Проверка шага:       {x}, {y} ———> {array}")
     if 0 <= x < len(areaSquares) and \
             0 <= y < len(areaSquares):
         if areaSquares[y][x][0] == "2":
@@ -414,7 +412,7 @@ def check_step(x: int, y: int, delta: int, array: list):
             check_step(new_x, new_y, delta, array)
         elif "a" in areaSquares[y][x][0]:
             check_step_arrow(x, y, array, areaSquares[y][x][1])
-        elif (x, y) not in array:  # and areaSquares[y][x][0] != "c"
+        elif (x, y) not in array and areaSquares[y][x][0] != "c":
             array.append((x, y))
 
 
@@ -425,10 +423,15 @@ def check_steps(x: int, y: int):
         mark_fill_squares([(x, y)], select)
         if areaSquares[y][x][0] == "h":
             steps = [9, 10, 11, 12, 13, 14, 15, 16]
+        elif "a" in areaSquares[y][x][0]:
+            check_step_arrow(x, y, array, areaSquares[y][x][1])
+            show_area_cnsl(array, "Строка", ps="Координаты, куда ходить")
+            mark_fill_squares(array, mark)
+            return
         for delta in steps:
             check_step(x + digit2delta[delta][0], y + digit2delta[delta][1], delta, array)
     array = list(set(array))
-    show_area_cnsl(array, "Строка", ps="ТЕСТ")
+    show_area_cnsl(array, "Строка", ps="Координаты, куда ходить")
     mark_fill_squares(array, mark)
 
 
@@ -504,7 +507,15 @@ areaSquares[3][7] = ["a2", [4]]
 areaSquares[6][6] = ["h"]
 areaSquares[7][8] = ["2"]
 
-show_area_cnsl(areaSquares, "Массив", ps="Карточки")
+areaSquares[7][3] = ["a2", [2]]
+areaSquares[8][3] = ["a2", [2]]
+areaSquares[9][3] = ["a2", [2]]
+
+areaSquares[9][2] = ["f", [2]]
+areaSquares[9][4] = ["f", [2]]
+
+
+show_area_cnsl(areaSquares, "Массив", ps="Поле")
 show_area(areaSquares, areaOpen)
 
 running = True
@@ -531,7 +542,7 @@ while running:
                 clear_area(areaSquares)
                 clear_area(areaOpen)
                 mix_area(areaSquares)
-                show_area_cnsl(areaSquares, "Поле", ps="Карточки")
+                show_area_cnsl(areaSquares, "Поле", ps="Поле")
                 show_area(areaSquares, areaOpen)
 
             elif event.key == pygame.K_o:
