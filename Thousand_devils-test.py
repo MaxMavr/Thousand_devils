@@ -1,17 +1,7 @@
-for i in range(0, 10):
-    for y in range(0, 10):
-        print(i, y)
-        t = 1
-        while True:
-            print(t)
-            t += 1
-            if t == 3:
-                break
+array = [["e1"], ["e2"], ["e3"], ["e4"],
+         ["a1"], ["a2"], ["a3"], ["a4"], ["a5"], ["a6"], ["a7"],
+         ["h"]]
 
-
-
-
-
-
-
-
+for i in array:
+    if "a" in i[0]:
+        print(i[0])

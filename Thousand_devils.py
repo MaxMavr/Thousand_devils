@@ -1,6 +1,8 @@
 # import math
 # import time
 import random
+import time
+
 import pygame
 
 # Нужно сделать:
@@ -16,8 +18,9 @@ scope = 50
 # Цвета
 white = (255, 255, 255)
 black = (0, 0, 0)
-dark_magenta_a = (139, 0, 139, 255/2)
-red_a = (255, 0, 0, 255/4)
+mark = (139, 0, 139, 255/2)
+select = (255, 255, 255, 255/1.5)
+out = (0, 0, 0)
 # dark_blue_a = (0, 0, 139, 255/2)
 # dark_blue = (0, 0, 139, 255)
 # deep_pink_a = (255, 20, 147, 255/2)
@@ -25,7 +28,7 @@ red_a = (255, 0, 0, 255/4)
 
 pygame.init()
 clock = pygame.time.Clock()
-window = pygame.display.set_mode((window_width, window_height))
+window = pygame.display.set_mode((window_width, window_height), pygame.RESIZABLE)
 
 # Загрузка изображений
 empty1 = pygame.image.load("IMG/empty1.png").convert()
@@ -104,6 +107,17 @@ digit2delta = {
     16: (1, 2)
 }
 
+digit2degrees = {
+    1: "-270",
+    2: "-270",
+    3: "-0",
+    4: "-180",
+    5: "-0",
+    6: "-180",
+    7: "-90",
+    8: "-90"
+}
+
 squares_name_img = {"e1": empty1,
                     "e2": empty2,
                     "e3": empty3,
@@ -161,17 +175,6 @@ squares_name_img = {"e1": empty1,
                     "j": jungles,
                     "m": grass
                     }
-
-digit2degrees = {
-    1: "-270",
-    2: "-270",
-    3: "-0",
-    4: "-180",
-    5: "-0",
-    6: "-180",
-    7: "-90",
-    8: "-90"
-}
 
 squares = {"e1": 5, "e2": 4, "e3": 5, "e4": 4,
            "a1": 3, "a2": 3, "a3": 3, "a4": 3, "a5": 3, "a6": 3, "a7": 3,
@@ -238,11 +241,6 @@ def own_rand(start: int, end: int) -> int:
     return random.randrange(start, end)
 
 
-def get_area_square(area: list, x: int, y: int):
-    value = area[y][x]
-    return value
-
-
 def clear_area(area: list):
     for y in range(0, len(area)):
         for x in range(0, len(area[y])):
@@ -252,7 +250,10 @@ def clear_area(area: list):
 def fill_area(area: list, value):
     for y in range(0, len(area)):
         for x in range(0, len(area[y])):
-            area[x][y][0] = value
+            if x == 0 or y == 0 or x == 12 or y == 12 or ((x == 1 or x == 11) and (y == 1 or y == 11)):
+                area[y][x][0] = "S"
+            else:
+                area[x][y][0] = value
 
 
 def show_area_cnsl(area: list, mode: str, ps=""):
@@ -293,19 +294,19 @@ def mix_area(area: list):
                     if squares_[choose] != 0:
                         squares_[choose] -= 1
                         if choose == "g":
-                            area[y][x] = ["g", *random.sample([[2], [4], [5], [7]], 1)]
+                            area[y][x] = ["g", random.choice([[2], [4], [5], [7]])]
                             break
                         elif choose == "a1":
-                            area[y][x] = ["a1", *random.sample([[1], [3], [6], [8]], 1)]
+                            area[y][x] = ["a1", random.choice([[1], [3], [6], [8]])]
                             break
                         elif choose == "a2":
-                            area[y][x] = ["a2", *random.sample([[2], [4], [5], [7]], 1)]
+                            area[y][x] = ["a2", random.choice([[2], [4], [5], [7]])]
                             break
                         elif choose == "a3":
-                            area[y][x] = ["a3", *random.sample([[4, 5], [2, 7]], 1)]
+                            area[y][x] = ["a3", random.choice([[4, 5], [2, 7]])]
                             break
                         elif choose == "a4":
-                            area[y][x] = ["a4", *random.sample([[1, 8], [3, 6]], 1)]
+                            area[y][x] = ["a4", random.choice([[1, 8], [3, 6]])]
                             break
                         elif choose == "a5":
                             area[y][x] = ["a5", [1, 3, 6, 8]]
@@ -314,10 +315,7 @@ def mix_area(area: list):
                             area[y][x] = ["a6", [2, 4, 5, 7]]
                             break
                         elif choose == "a7":
-                            area[y][x] = ["a7", *random.sample([[1, 5, 7], [3, 4, 7], [6, 5, 2], [8, 4, 2]], 1)]
-                            break
-                        elif choose == "h":
-                            area[y][x] = ["h", [9, 10, 11, 12, 13, 14, 15, 16]]
+                            area[y][x] = ["a7", random.choice([[1, 5, 7], [3, 4, 7], [6, 5, 2], [8, 4, 2]])]
                             break
                         else:
                             area[y][x][0] = choose
@@ -348,83 +346,90 @@ def change_scope(delta: int):
     print("Масштаб:", scope)
 
 
-def mark_squares(x_y: list, color: tuple):
+def mark_outline_rectangle(x, y, color: tuple):
+    pygame.draw.rect(window, color, (x * scope + 100, y * scope + 100, scope, scope), 2)
+
+
+def mark_fill_squares(x_y: list, color: tuple):
     square = pygame.Surface((scope, scope), pygame.SRCALPHA)
     square.fill(color)
     for c in x_y:
         window.blit(square, (c[0] * scope + 100, c[1] * scope + 100))
 
 
-def check_step_arrow(x: int, y: int, array: set, directions: list):
-    for i in directions:
-        new_x = x + digit2delta[i][0]
-        new_y = y + digit2delta[i][1]
-        coordinates = (new_x, new_y)
+def check_step_arrow(x: int, y: int, array: list, directions: list):
+    time.sleep(1/2)
+    mark_outline_rectangle(x, y, out)
+    pygame.display.flip()
+
+    print(f"Проверка стрелки: {x}, {y} ———> {array}")
+    for delta in directions:
+        new_x = x + digit2delta[delta][0]
+        new_y = y + digit2delta[delta][1]
         if 0 <= new_x < len(areaSquares) and \
            0 <= new_y < len(areaSquares):
-            if areaSquares[new_y][new_x][0] == "a1" and coordinates not in array:
+            if areaSquares[new_y][new_x][0] == "a1" and (new_x, new_y) not in array:
+                array.append((new_x, new_y))
                 check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-            elif areaSquares[new_y][new_x][0] == "a2" and coordinates not in array:
+                array.remove((new_x, new_y))
+            elif areaSquares[new_y][new_x][0] == "a2" and (new_x, new_y) not in array:
+                array.append((new_x, new_y))
                 check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-            elif areaSquares[new_y][new_x][0] == "a3" and coordinates not in array:
+                array.remove((new_x, new_y))
+            elif areaSquares[new_y][new_x][0] == "a3" and (new_x, new_y) not in array:
+                array.append((new_x, new_y))
                 check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-            elif areaSquares[new_y][new_x][0] == "a4" and coordinates not in array:
+                array.remove((new_x, new_y))
+            elif areaSquares[new_y][new_x][0] == "a4" and (new_x, new_y) not in array:
+                array.append((new_x, new_y))
                 check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-            elif areaSquares[new_y][new_x][0] == "a5" and coordinates not in array:
+                array.remove((new_x, new_y))
+            elif areaSquares[new_y][new_x][0] == "a5" and (new_x, new_y) not in array:
+                array.append((new_x, new_y))
                 check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-            elif areaSquares[new_y][new_x][0] == "a6" and coordinates not in array:
+                array.remove((new_x, new_y))
+            elif areaSquares[new_y][new_x][0] == "a6" and (new_x, new_y) not in array:
+                array.append((new_x, new_y))
                 check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-            elif areaSquares[new_y][new_x][0] == "a7" and coordinates not in array:
+                array.remove((new_x, new_y))
+            elif areaSquares[new_y][new_x][0] == "a7" and (new_x, new_y) not in array:
+                array.append((new_x, new_y))
                 check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-            elif areaSquares[new_y][new_x][0] == "2" and coordinates not in array:
-                new_x = new_x + digit2delta[i][0]
-                new_y = new_y + digit2delta[i][1]
-                coordinates = (new_x, new_y)
-                array.add(coordinates)
-            elif coordinates not in array:
-                array.add(coordinates)
-    print(coordinates)
+                array.remove((new_x, new_y))
+            elif (new_x, new_y) not in array:
+                check_step(new_x, new_y, delta, array)
 
 
-def check_step(x: int, y: int):
-    array = set()
+def check_step(x: int, y: int, delta: int, array: list):
+    time.sleep(1 / 2)
+    mark_outline_rectangle(x, y, out)
+    pygame.display.flip()
+
+    print(f"Проверка шага: {x}, {y} ———> {array}")
     if 0 <= x < len(areaSquares) and \
-            0 <= y < len(areaSquares) and \
-            areaSquares[y][x][0] == "h":
-        mark_squares([(x, y)], red_a)
-        check_step_arrow(x, y, array, areaSquares[y][x][1])
-    else:
-        for i in range(1, 9):
-            new_x = x + digit2delta[i][0]
-            new_y = y + digit2delta[i][1]
-            coordinates = (new_x, new_y)
-            if 0 <= new_x < len(areaSquares) and \
-               0 <= new_y < len(areaSquares):
-                mark_squares([(x, y)], red_a)
-                if areaSquares[new_y][new_x][0] == "a1" and coordinates not in array:
-                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                elif areaSquares[new_y][new_x][0] == "a2" and coordinates not in array:
-                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                elif areaSquares[new_y][new_x][0] == "a3" and coordinates not in array:
-                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                elif areaSquares[new_y][new_x][0] == "a4" and coordinates not in array:
-                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                elif areaSquares[new_y][new_x][0] == "a5" and coordinates not in array:
-                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                elif areaSquares[new_y][new_x][0] == "a6" and coordinates not in array:
-                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                elif areaSquares[new_y][new_x][0] == "a7" and coordinates not in array:
-                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                elif areaSquares[new_y][new_x][0] == "2" and coordinates not in array:
-                    new_x = new_x + digit2delta[i][0]
-                    new_y = new_y + digit2delta[i][1]
-                    coordinates = (new_x, new_y)
-                    array.add(coordinates)
-                elif coordinates not in array:
-                    array.add(coordinates)
-                print(coordinates)
-    show_area_cnsl(list(array), "Строка", ps="ТЕСТ")
-    mark_squares(list(array), dark_magenta_a)
+            0 <= y < len(areaSquares):
+        if areaSquares[y][x][0] == "2":
+            new_x = x + digit2delta[delta][0]
+            new_y = y + digit2delta[delta][1]
+            check_step(new_x, new_y, delta, array)
+        elif "a" in areaSquares[y][x][0]:
+            check_step_arrow(x, y, array, areaSquares[y][x][1])
+        elif (x, y) not in array:  # and areaSquares[y][x][0] != "c"
+            array.append((x, y))
+
+
+def check_steps(x: int, y: int):
+    steps = [1, 2, 3, 4, 5, 6, 7, 8]
+    array = []
+    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
+        mark_fill_squares([(x, y)], select)
+        if areaSquares[y][x][0] == "h":
+            steps = [9, 10, 11, 12, 13, 14, 15, 16]
+        for delta in steps:
+            check_step(x + digit2delta[delta][0], y + digit2delta[delta][1], delta, array)
+    array = list(set(array))
+    show_area_cnsl(array, "Строка", ps="ТЕСТ")
+    mark_fill_squares(array, mark)
 
 
 def mouse_click(x_y: tuple):
@@ -438,7 +443,7 @@ def mouse_click(x_y: tuple):
               f"{' ' * (4 - (x//10 + y//10))}"
               f"{areaSquares[y][x]}")
         print_window(f"{areaSquares[y][x]}\n{x}, {y}")
-    check_step(x, y)
+    check_steps(x, y)
 
 
 def show_area(area: list, opened: list):
@@ -486,12 +491,19 @@ def show_area(area: list, opened: list):
 pygame.display.set_caption("Thousand devils")
 pygame.display.set_icon(pygame.image.load("IMG/empty1.png"))
 
+
 clear_area(areaOpen)
 clear_area(areaSquares)
 clear_area(areaPawns)
 
+fill_area(areaSquares, "e2")
 
-mix_area(areaSquares)
+# Строчки для теста цикл: —> <—
+areaSquares[3][6] = ["a2", [5]]
+areaSquares[3][7] = ["a2", [4]]
+areaSquares[6][6] = ["h"]
+areaSquares[7][8] = ["2"]
+
 show_area_cnsl(areaSquares, "Массив", ps="Карточки")
 show_area(areaSquares, areaOpen)
 
