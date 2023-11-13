@@ -258,28 +258,28 @@ def fill_area(area: list, value):
 
 def show_area_cnsl(area: list, mode: str, ps=""):
     if mode == "Поле":
-        print(f"Просмотр поля ({ps}):")
+        print("\033[32m{}\033[0m".format(f"Просмотр поля ({ps}):"))
         line = ""
         for y in range(0, len(area)):
             for x in range(0, len(area[y])):
                 line = line\
                        + " " * (3 - len(str(area[y][x][0])))\
                        + str(area[y][x][0])
-            print(line)
+            print("\033[32m{}\033[0m".format(f"{line}"))
             line = ""
 
     elif mode == "Массив":
-        print(f"Просмотр массива ({ps}):")
+        print("\033[32m{}\033[0m".format(f"Просмотр массива ({ps}):"))
         for y in range(0, len(area)):
-            print(area[y])
+            print("\033[32m{}\033[0m".format(f"{area[y]}"))
 
     elif mode == "Список":
-        print(f"Просмотр списка ({ps}):")
+        print("\033[32m{}\033[0m".format(f"Просмотр списка ({ps}):"))
         for y in range(0, len(area)):
             for x in range(0, len(area[y])):
-                print(area[y][x])
+                print("\033[32m{}\033[0m".format(f"{area[y][x]}"))
     elif mode == "Строка":
-        print(f"Просмотр строки ({ps}):\n{area}")
+        print("\033[32m{}\033[0m".format(f"Просмотр строки ({ps}):\n{area}"))
 
 
 def mix_area(area: list):
@@ -343,7 +343,7 @@ def change_scope(delta: int):
     if scope + delta >= 20:
         scope += delta
     show_area(areaSquares, areaOpen)
-    print("Масштаб:", scope)
+    print("\033[34m{}\033[0m".format(f"Масштаб: {scope}"))
 
 
 def mark_outline_rectangle(x, y, color: tuple):
@@ -441,10 +441,8 @@ def mouse_click(x_y: tuple):
     y = (x_y[1] - 100) // scope
     open_square(areaOpen, x, y)
     if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-        print(f"Координаты квадрата: "
-              f"{x}, {y}"
-              f"{' ' * (4 - (x//10 + y//10))}"
-              f"{areaSquares[y][x]}")
+        print("\033[35m{}\033[0m".format(f"Координаты квадрата: "
+              f"{x}, {y}{' ' * (4 - (x//10 + y//10))}{areaSquares[y][x]}"))
         print_window(f"{areaSquares[y][x]}\n{x}, {y}")
     check_steps(x, y)
 
@@ -499,9 +497,9 @@ clear_area(areaOpen)
 clear_area(areaSquares)
 clear_area(areaPawns)
 
-fill_area(areaSquares, "e2")
 
 # Строчки для теста цикл: —> <—
+fill_area(areaSquares, "e2")
 areaSquares[3][6] = ["a2", [5]]
 areaSquares[3][7] = ["a2", [4]]
 areaSquares[6][6] = ["h"]
@@ -515,7 +513,7 @@ areaSquares[9][2] = ["f", [2]]
 areaSquares[9][4] = ["f", [2]]
 
 
-show_area_cnsl(areaSquares, "Массив", ps="Поле")
+show_area_cnsl(areaSquares, "Поле", ps="Поле")
 show_area(areaSquares, areaOpen)
 
 running = True
