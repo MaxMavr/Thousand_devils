@@ -2,6 +2,7 @@
 # import time
 import random
 import time
+from typing import Any
 
 import pygame
 
@@ -9,18 +10,21 @@ import pygame
 # 1) починить выбор клеток (Иногда не выбираются клетки после стрелок)
 # {Функции: check_step, check_step_arrow}
 
-window_height = 1000
+window_height = 800
 window_width = window_height * 16 / 9
 fps = 60
-scope = 50
 
+scope = 50
+place_y = 100
+place_x = 300
+holdup = 0.17
 
 # Цвета
 white = (255, 255, 255)
 black = (0, 0, 0)
 mark = (139, 0, 139, 255/2)
 select = (255, 255, 255, 255/1.5)
-out = (0, 0, 0)
+out = (128, 128, 128)
 # dark_blue_a = (0, 0, 139, 255/2)
 # dark_blue = (0, 0, 139, 255)
 # deep_pink_a = (255, 20, 147, 255/2)
@@ -206,20 +210,20 @@ areaOpen = [[[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]
             [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]]
             ]
 
-areaSquares = [[[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
-               [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]]
-               ]
+areaSquares: list[list[list[Any]]] = [[[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
+                                      [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]]
+                                      ]
 
 areaPawns = [[[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
              [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13]],
@@ -241,6 +245,32 @@ def own_rand(start: int, end: int) -> int:
     return random.randrange(start, end)
 
 
+def set_corners():
+    for i in range(0, len(areaSquares[0])):
+        areaSquares[0][i][0] = "S"
+        areaOpen[0][i][0] = 1
+
+    for i in range(1, len(areaSquares) - 1):
+        areaSquares[i][0][0] = "S"
+        areaOpen[i][0][0] = 1
+        areaSquares[i][len(areaSquares[i]) - 1][0] = "S"
+        areaOpen[i][len(areaSquares[i]) - 1][0] = 1
+
+        areaSquares[1][1][0] = "S"
+        areaSquares[1][11][0] = "S"
+        areaSquares[11][1][0] = "S"
+        areaSquares[11][11][0] = "S"
+
+        areaOpen[1][1][0] = 1
+        areaOpen[1][11][0] = 1
+        areaOpen[11][1][0] = 1
+        areaOpen[11][11][0] = 1
+
+    for i in range(0, len(areaSquares[len(areaSquares) - 1])):
+        areaSquares[len(areaSquares) - 1][i][0] = "S"
+        areaOpen[len(areaSquares) - 1][i][0] = 1
+
+
 def clear_area(area: list):
     for y in range(0, len(area)):
         for x in range(0, len(area[y])):
@@ -248,48 +278,52 @@ def clear_area(area: list):
 
 
 def fill_area(area: list, value):
+    set_corners()
     for y in range(0, len(area)):
         for x in range(0, len(area[y])):
-            if x == 0 or y == 0 or x == 12 or y == 12 or ((x == 1 or x == 11) and (y == 1 or y == 11)):
-                area[y][x][0] = "S"
-            else:
+            if area[y][x][0] != "S":
                 area[x][y][0] = value
 
 
-def show_area_cnsl(area: list, mode: str, ps=""):
+def print_area(area: list, mode: str, ps=""):
     if mode == "Поле":
-        print("\033[32m{}\033[0m".format(f"Просмотр поля ({ps}):"))
+        print("\033[32m{}\033[0m".format(f"▦ Просмотр поля: {ps}"))
         line = ""
         for y in range(0, len(area)):
             for x in range(0, len(area[y])):
                 line = line\
-                       + " " * (3 - len(str(area[y][x][0])))\
-                       + str(area[y][x][0])
+                       + str(area[y][x][0])\
+                       + " " * (3 - len(str(area[y][x][0])))
             print("\033[32m{}\033[0m".format(f"{line}"))
             line = ""
+        print("\n")
 
     elif mode == "Массив":
-        print("\033[32m{}\033[0m".format(f"Просмотр массива ({ps}):"))
+        print("\033[32m{}\033[0m".format(f"▥ Просмотр массива: {ps}"))
         for y in range(0, len(area)):
             print("\033[32m{}\033[0m".format(f"{area[y]}"))
+        print("\n")
 
     elif mode == "Список":
-        print("\033[32m{}\033[0m".format(f"Просмотр списка ({ps}):"))
+        print("\033[32m{}\033[0m".format(f"▤ Просмотр списка: {ps}"))
         for y in range(0, len(area)):
             for x in range(0, len(area[y])):
                 print("\033[32m{}\033[0m".format(f"{area[y][x]}"))
+        print("\n")
     elif mode == "Строка":
-        print("\033[32m{}\033[0m".format(f"Просмотр строки ({ps}):\n{area}"))
+        print("\033[32m{}\033[0m".format(f"▧ Просмотр строки: {ps}\n{area}"))
+        print("\n")
 
 
 def mix_area(area: list):
+    clear_area(area)
     squares_ = squares.copy()
+    set_corners()
     for y in range(0, len(area)):
         for x in range(0, len(area[y])):
-            if x == 0 or y == 0 or x == 12 or y == 12 or ((x == 1 or x == 11) and (y == 1 or y == 11)):
-                area[y][x][0] = "S"
-            else:
+            if area[y][x][0] != "S":
                 while True:
+                    # print(sum(squares_.values()))
                     choose = random.choice(list(squares_.keys()))
                     if squares_[choose] != 0:
                         squares_[choose] -= 1
@@ -317,6 +351,9 @@ def mix_area(area: list):
                         elif choose == "a7":
                             area[y][x] = ["a7", random.choice([[1, 5, 7], [3, 4, 7], [6, 5, 2], [8, 4, 2]])]
                             break
+                        elif choose == "p":
+                            area[y][x] = ["p", True]
+                            break
                         else:
                             area[y][x][0] = choose
                             break
@@ -337,121 +374,159 @@ def open_square(opened: list, x: int, y: int,):
     show_area(areaSquares, areaOpen)
 
 
-# Изменение масштаба
+def close_square(opened: list, x: int, y: int,):
+    if 0 <= x < len(opened) and 0 <= y < len(opened):
+        opened[y][x][0] = 0
+    show_area(areaSquares, areaOpen)
+
+
 def change_scope(delta: int):
     global scope
-    if scope + delta >= 20:
+    if 20 <= scope + delta <= 190:
         scope += delta
     show_area(areaSquares, areaOpen)
-    print("\033[34m{}\033[0m".format(f"Масштаб: {scope}"))
+    print("\033[34m{}\033[0m".format(f"Масштаб:   {scope}"))
+
+
+def change_place(delta: tuple):
+    global place_x, place_y
+    place_x = place_x + delta[0]
+    place_y = place_y + delta[1]
+    show_area(areaSquares, areaOpen)
+    print("\033[34m{}\033[0m".format(f"Положение: {place_x}, {place_y}"))
 
 
 def mark_outline_rectangle(x, y, color: tuple):
-    pygame.draw.rect(window, color, (x * scope + 100, y * scope + 100, scope, scope), 2)
+    pygame.draw.rect(window, color, (x * scope + place_x, y * scope + place_y, scope, scope), 2)
 
 
 def mark_fill_squares(x_y: list, color: tuple):
     square = pygame.Surface((scope, scope), pygame.SRCALPHA)
     square.fill(color)
     for c in x_y:
-        window.blit(square, (c[0] * scope + 100, c[1] * scope + 100))
+        window.blit(square, (c[0] * scope + place_x, c[1] * scope + place_y))
 
 
-def check_step_arrow(x: int, y: int, array: list, directions: list):
+def check_step_arrow(x: int, y: int, array: set, directions: list):
     mark_outline_rectangle(x, y, out)
     pygame.display.flip()
 
-    print(f"Проверка стрелки:    {x}, {y} ———> {array}")
+    print(f"↗ Проверка стрелки:  "
+          f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{array}")
     for delta in directions:
         new_x = x + digit2delta[delta][0]
         new_y = y + digit2delta[delta][1]
         if 0 <= new_x < len(areaSquares) and \
            0 <= new_y < len(areaSquares):
-            if areaSquares[new_y][new_x][0] == "a1" and (new_x, new_y) not in array:
-                array.append((new_x, new_y))
-                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                array.remove((new_x, new_y))
-            elif areaSquares[new_y][new_x][0] == "a2" and (new_x, new_y) not in array:
-                array.append((new_x, new_y))
-                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                array.remove((new_x, new_y))
-            elif areaSquares[new_y][new_x][0] == "a3" and (new_x, new_y) not in array:
-                array.append((new_x, new_y))
-                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                array.remove((new_x, new_y))
-            elif areaSquares[new_y][new_x][0] == "a4" and (new_x, new_y) not in array:
-                array.append((new_x, new_y))
-                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                array.remove((new_x, new_y))
-            elif areaSquares[new_y][new_x][0] == "a5" and (new_x, new_y) not in array:
-                array.append((new_x, new_y))
-                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                array.remove((new_x, new_y))
-            elif areaSquares[new_y][new_x][0] == "a6" and (new_x, new_y) not in array:
-                array.append((new_x, new_y))
-                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                array.remove((new_x, new_y))
-            elif areaSquares[new_y][new_x][0] == "a7" and (new_x, new_y) not in array:
-                array.append((new_x, new_y))
-                check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
-                array.remove((new_x, new_y))
-            elif (new_x, new_y) not in array:
-                check_step(new_x, new_y, delta, array)
+            if areaOpen[new_y][new_x][0] == 1:
+                if areaSquares[new_y][new_x][0] == "a1" and (new_x, new_y) not in array:
+                    array.add((new_x, new_y))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
+                    array.discard((new_x, new_y))
+                elif areaSquares[new_y][new_x][0] == "a2" and (new_x, new_y) not in array:
+                    array.add((new_x, new_y))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
+                    array.discard((new_x, new_y))
+                elif areaSquares[new_y][new_x][0] == "a3" and (new_x, new_y) not in array:
+                    array.add((new_x, new_y))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
+                    array.discard((new_x, new_y))
+                elif areaSquares[new_y][new_x][0] == "a4" and (new_x, new_y) not in array:
+                    array.add((new_x, new_y))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
+                    array.discard((new_x, new_y))
+                elif areaSquares[new_y][new_x][0] == "a5" and (new_x, new_y) not in array:
+                    array.add((new_x, new_y))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
+                    array.discard((new_x, new_y))
+                elif areaSquares[new_y][new_x][0] == "a6" and (new_x, new_y) not in array:
+                    array.add((new_x, new_y))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
+                    array.discard((new_x, new_y))
+                elif areaSquares[new_y][new_x][0] == "a7" and (new_x, new_y) not in array:
+                    array.add((new_x, new_y))
+                    check_step_arrow(new_x, new_y, array, areaSquares[new_y][new_x][1])
+                    array.discard((new_x, new_y))
+                elif areaSquares[new_y][new_x][0] == "S" and (new_x, new_y) not in array:
+                    array.add((new_x, new_y))
+                elif (new_x, new_y) not in array:
+                    check_step(new_x, new_y, delta, array)
+            else:
+                array.add((new_x, new_y))
 
 
-def check_step(x: int, y: int, delta: int, array: list):
+def check_step(x: int, y: int, delta: int, array: set):
     mark_outline_rectangle(x, y, out)
     pygame.display.flip()
 
-    print(f"Проверка шага:       {x}, {y} ———> {array}")
+    print(f"☐ Проверка шага:     "
+          f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{array}")
+
     if 0 <= x < len(areaSquares) and \
             0 <= y < len(areaSquares):
-        if areaSquares[y][x][0] == "2":
-            new_x = x + digit2delta[delta][0]
-            new_y = y + digit2delta[delta][1]
-            check_step(new_x, new_y, delta, array)
-        elif "a" in areaSquares[y][x][0]:
-            check_step_arrow(x, y, array, areaSquares[y][x][1])
-        elif (x, y) not in array and areaSquares[y][x][0] != "c":
-            array.append((x, y))
+        if areaOpen[y][x][0] == 1:
+            if areaSquares[y][x][0] == "2":
+                new_x = x + digit2delta[delta][0]
+                new_y = y + digit2delta[delta][1]
+                check_step(new_x, new_y, delta, array)
+            elif "a" in areaSquares[y][x][0]:
+                check_step_arrow(x, y, array, areaSquares[y][x][1])
+            elif (x, y) not in array and \
+                    areaSquares[y][x][0] != "c" and \
+                    areaSquares[y][x][0] != "S":
+                array.add((x, y))
+        else:
+            array.add((x, y))
 
 
 def check_steps(x: int, y: int):
     steps = [1, 2, 3, 4, 5, 6, 7, 8]
-    array = []
+    array = set()
     if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
         mark_fill_squares([(x, y)], select)
-        if areaSquares[y][x][0] == "h":
+        if areaSquares[y][x][0] == "p":
+            if areaSquares[y][x][1]:  # True, если не использовали
+                for y_ in range(0, len(areaOpen)):
+                    for x_ in range(0, len(areaOpen)):
+                        if areaOpen[y_][x_][0] == 1 and areaSquares[y_][x_][0] != "S":
+                            array.add((x_, y_))
+        elif areaSquares[y][x][0] == "h":
             steps = [9, 10, 11, 12, 13, 14, 15, 16]
         elif "a" in areaSquares[y][x][0]:
             check_step_arrow(x, y, array, areaSquares[y][x][1])
-            show_area_cnsl(array, "Строка", ps="Координаты, куда ходить")
-            mark_fill_squares(array, mark)
+            print_area(list(array), "Строка", ps="Координаты, куда ходить")
+            mark_fill_squares(list(array), mark)
             return
         for delta in steps:
             check_step(x + digit2delta[delta][0], y + digit2delta[delta][1], delta, array)
-    array = list(set(array))
-    show_area_cnsl(array, "Строка", ps="Координаты, куда ходить")
+    array = list(array)
+    print_area(array, "Строка", ps="Координаты, куда ходить")
     mark_fill_squares(array, mark)
 
 
-def mouse_click(x_y: tuple):
-    global scope
-    x = (x_y[0] - 100) // scope
-    y = (x_y[1] - 100) // scope
-    open_square(areaOpen, x, y)
-    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-        print("\033[35m{}\033[0m".format(f"Координаты квадрата: "
-              f"{x}, {y}{' ' * (4 - (x//10 + y//10))}{areaSquares[y][x]}"))
-        print_window(f"{areaSquares[y][x]}\n{x}, {y}")
-    check_steps(x, y)
+def mouse_click(x_y: tuple, mode: int, delay: float):
+    if mode == 1 or mode == 3:
+        global scope
+        x = (x_y[0] - place_x) // scope
+        y = (x_y[1] - place_y) // scope
+        if mode == 1:
+            open_square(areaOpen, x, y)
+        elif mode == 3:
+            close_square(areaOpen, x, y)
+        if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
+            print("\033[35m{}\033[0m".format(f"Координаты квадрата: "
+                                             f"{x}, {y}{' ' * (4 - (x//10 + y//10))}{areaSquares[y][x]}"
+                                             f"{' ' * (30 - len(str(areaSquares[y][x])))}"
+                                             f"Δt {delay}"))
+            print_window(f"{areaSquares[y][x]}\n{x}, {y}")
+        check_steps(x, y)
 
 
 def show_area(area: list, opened: list):
     global scope
     clear_window()
     square_temp = pygame.transform.scale(frame, (scope * 13, scope * 13))
-    window.blit(square_temp, (100, 100))
+    window.blit(square_temp, (place_x, place_y))
     for y in range(0, len(area)):
         for x in range(0, len(area[y])):
             if opened[y][x][0] == 1 and area[y][x][0] != "S":
@@ -474,19 +549,19 @@ def show_area(area: list, opened: list):
                 elif area[y][x][0] == "a7":
                     square_temp = pygame.transform.rotate(square_temp,
                                                           int(digit2degrees[area[y][x][1][0]]))
-                window.blit(square_temp, (x * scope + 100, y * scope + 100))
+                window.blit(square_temp, (x * scope + place_x, y * scope + place_y))
             elif opened[y][x][0] == 0 and area[y][x][0] != "S":
                 square_temp = pygame.transform.scale(empty, (scope, scope))
-                window.blit(square_temp, (x * scope + 100, y * scope + 100))
+                window.blit(square_temp, (x * scope + place_x, y * scope + place_y))
 
     square_temp = pygame.transform.scale(boat, (scope, scope))
-    window.blit(square_temp, (0 * scope + 100, 6 * scope + 100))
+    window.blit(square_temp, (0 * scope + place_x, 6 * scope + place_y))
     square_temp = pygame.transform.scale(boat, (scope, scope))
-    window.blit(square_temp, (6 * scope + 100, 0 * scope + 100))
+    window.blit(square_temp, (6 * scope + place_x, 0 * scope + place_y))
     square_temp = pygame.transform.scale(boat, (scope, scope))
-    window.blit(square_temp, (12 * scope + 100, 6 * scope + 100))
+    window.blit(square_temp, (12 * scope + place_x, 6 * scope + place_y))
     square_temp = pygame.transform.scale(boat, (scope, scope))
-    window.blit(square_temp, (6 * scope + 100, 12 * scope + 100))
+    window.blit(square_temp, (6 * scope + place_x, 12 * scope + place_y))
 
 
 pygame.display.set_caption("Thousand devils")
@@ -497,6 +572,8 @@ clear_area(areaOpen)
 clear_area(areaSquares)
 clear_area(areaPawns)
 
+set_corners()
+print_area(areaSquares, "Поле", ps="Рамка")
 
 # Строчки для теста цикл: —> <—
 fill_area(areaSquares, "e2")
@@ -509,13 +586,18 @@ areaSquares[7][3] = ["a2", [2]]
 areaSquares[8][3] = ["a2", [2]]
 areaSquares[9][3] = ["a2", [2]]
 
-areaSquares[9][2] = ["f", [2]]
-areaSquares[9][4] = ["f", [2]]
+areaSquares[9][2] = ["f"]
+areaSquares[9][4] = ["f"]
+areaSquares[3][3] = ["p", True]
 
 
-show_area_cnsl(areaSquares, "Поле", ps="Поле")
+print_area(areaSquares, "Массив", ps="Поле")
+print_area(areaSquares, "Поле", ps="Поле")
 show_area(areaSquares, areaOpen)
 
+
+flag_holdup = False
+temp_time = 0.0
 running = True
 while running:
 
@@ -529,18 +611,28 @@ while running:
             exit()
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                mouse_click(event.pos)
+            flag_holdup = True
+            temp_time = time.time()
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if time.time() - temp_time < holdup:
+                flag_holdup = False
+                mouse_click(event.pos, event.button, time.time() - temp_time)
+            else:
+                flag_holdup = False
 
         elif event.type == pygame.MOUSEWHEEL:
             change_scope(event.y)
+
+        elif event.type == pygame.MOUSEMOTION and flag_holdup:
+            change_place(event.rel)
 
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
                 clear_area(areaSquares)
                 clear_area(areaOpen)
                 mix_area(areaSquares)
-                show_area_cnsl(areaSquares, "Поле", ps="Поле")
+                print_area(areaSquares, "Поле", ps="Поле")
                 show_area(areaSquares, areaOpen)
 
             elif event.key == pygame.K_o:
