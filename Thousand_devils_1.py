@@ -246,6 +246,232 @@ def random_area_xy(area: typing.List, element: typing.List, quantity = 1):
     return area
 
 
+def mouse_click(x_y: tuple, mode: int, delay: float):
+    if mode == 1 or mode == 3:
+        global scope
+        x = (x_y[0] - place_x) // scope
+        y = (x_y[1] - place_y) // scope
+        if mode == 1:
+            open_square(areaOpen, x, y)
+        elif mode == 3:
+            close_square(areaOpen, x, y)
+        if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
+            print("\033[35m{}\033[0m".format(f"Координаты квадрата: "
+                                             f"{x}, {y}{' ' * (4 - (x//10 + y//10))}{areaSquares[y][x]}"
+                                             f"{' ' * (30 - len(str(areaSquares[y][x])))}"
+                                             f"Δt {delay}"))
+            print_window(f"{areaSquares[y][x]}\n{x}, {y}")
+        check_steps(x, y)
+
+
+
+
+
+
+
+
+
+
+
+
+
+def quantity_step_arrow(x: int, y: int, used_steps: set, directions: list):
+    print(f"↗ Проверка стрелки:  "
+          f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{used_steps}")
+
+    for digit in directions:
+        new_x = x + digit2delta[digit][0]
+        new_y = y + digit2delta[digit][1]
+        if 0 <= new_x < len(areaSquares) and \
+                0 <= new_y < len(areaSquares):
+            if areaOpen[new_y][new_x][0] == 1:
+                if areaSquares[new_y][new_x][0] == "a1" and (new_x, new_y) not in used_steps:
+                    used_steps.add((new_x, new_y))
+                    quantity_step_arrow(new_x, new_y, used_steps, areaSquares[new_y][new_x][1])
+                elif areaSquares[new_y][new_x][0] == "a2" and (new_x, new_y) not in used_steps:
+                    used_steps.add((new_x, new_y))
+                    quantity_step_arrow(new_x, new_y, used_steps, areaSquares[new_y][new_x][1])
+                elif areaSquares[new_y][new_x][0] == "a3" and (new_x, new_y) not in used_steps:
+                    used_steps.add((new_x, new_y))
+                    quantity_step_arrow(new_x, new_y, used_steps, areaSquares[new_y][new_x][1])
+                elif areaSquares[new_y][new_x][0] == "a4" and (new_x, new_y) not in used_steps:
+                    used_steps.add((new_x, new_y))
+                    quantity_step_arrow(new_x, new_y, used_steps, areaSquares[new_y][new_x][1])
+                elif areaSquares[new_y][new_x][0] == "a5" and (new_x, new_y) not in used_steps:
+                    used_steps.add((new_x, new_y))
+                    quantity_step_arrow(new_x, new_y, used_steps, areaSquares[new_y][new_x][1])
+                elif areaSquares[new_y][new_x][0] == "a6" and (new_x, new_y) not in used_steps:
+                    used_steps.add((new_x, new_y))
+                    quantity_step_arrow(new_x, new_y, used_steps, areaSquares[new_y][new_x][1])
+                elif areaSquares[new_y][new_x][0] == "a7" and (new_x, new_y) not in used_steps:
+                    used_steps.add((new_x, new_y))
+                    quantity_step_arrow(new_x, new_y, used_steps, areaSquares[new_y][new_x][1])
+                elif areaSquares[new_y][new_x][0] == "S" and (new_x, new_y) not in used_steps:
+                    used_steps.add((new_x, new_y))
+                elif (new_x, new_y) not in used_steps:
+                    quantity_step(new_x, new_y, digit, used_steps)
+            else:
+                used_steps.add((new_x, new_y))
+
+
+# Field — Поле, Coast — берег
+def quantity_step(x: int, y: int, digit: int, used_steps: set, mode="Field"):
+    print(f"☐ Проверка шага:     "
+          f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{used_steps}")
+
+    if 0 <= x < len(areaSquares) and \
+            0 <= y < len(areaSquares):
+        if areaOpen[y][x][0] == 1:
+            if areaSquares[y][x][0] == "2":
+                new_x = x + digit2delta[digit][0]
+                new_y = y + digit2delta[digit][1]
+                quantity_step(new_x, new_y, digit, used_steps)
+            elif "a" in areaSquares[y][x][0]:
+                quantity_step_arrow(x, y, used_steps, areaSquares[y][x][1])
+            elif (x, y) not in used_steps and \
+                    areaSquares[y][x][0] == "S" and \
+                    mode == "Coast":
+                used_steps.add((x, y))
+            elif (x, y) not in used_steps and \
+                    areaSquares[y][x][0] != "c" and \
+                    areaSquares[y][x][0] != "S" and \
+                    mode == "Field":
+                used_steps.add((x, y))
+        elif areaOpen[y][x][0] == 0 and mode == "Field":
+            used_steps.add((x, y))
+
+
+def quantity_steps(x: int, y: int) -> int:
+    mode = "Field"
+    checked_steps = [1, 2, 3, 4, 5, 6, 7, 8]
+    used_steps = set()
+    extra_quantity = 0
+    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
+        if areaSquares[y][x][0] == "S":
+            mode = "Coast"
+        elif areaSquares[y][x][0] == "p":
+            if areaSquares[y][x][1]:  # True, если не использовали
+                for p_y in range(0, len(areaOpen)):
+                    for p_x in range(0, len(areaOpen)):
+                        if areaOpen[p_y][p_x][0] == 1 and \
+                                areaSquares[p_y][p_x][0] != "S":
+                            used_steps.add((p_x, p_y))
+        elif areaSquares[y][x][0] == "h":
+            checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
+        elif "a" in areaSquares[y][x][0]:
+            checked_steps = areaSquares[y][x][1]
+        for step in checked_steps:
+            quantity_step(x + digit2delta[step][0],
+                          y + digit2delta[step][1],
+                          step, used_steps, mode=mode)
+    for step in used_steps:
+        if "a" in areaSquares[step[1]][step[0]][0] and \
+                areaOpen[step[1]][step[0]][0] == 1:
+            extra_quantity += 1
+    used_steps = list(used_steps)
+    print_area(used_steps, "Строка", ps="Координаты, куда ходить")
+    mark_fill_squares(used_steps, mark_select_color)
+    return len(used_steps) - extra_quantity
+
+
+def check_steps(x: int, y: int):
+    mode = "Field"
+    checked_steps = [1, 2, 3, 4, 5, 6, 7, 8]
+    allowed_steps = set()
+    extra_steps = set()
+    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
+        if areaSquares[y][x][0] == "S":
+            mode = "Coast"
+        elif areaSquares[y][x][0] == "h":
+            checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
+        elif areaSquares[y][x][0] == "p":
+            if areaSquares[y][x][1]:  # True, если не использовали
+                for p_y in range(0, len(areaOpen)):
+                    for p_x in range(0, len(areaOpen)):
+                        if areaOpen[p_y][p_x][0] == 1 and \
+                                areaSquares[p_y][p_x][0] != "S":
+                            allowed_steps.add((p_x, p_y))
+        elif "a" in areaSquares[y][x][0]:
+            checked_steps = areaSquares[y][x][1]
+        for step in checked_steps:
+            if 0 <= x + digit2delta[step][0] < len(areaSquares) and \
+                    0 <= y + digit2delta[step][1] < len(areaSquares):
+                allowed_steps.add((x + digit2delta[step][0], y + digit2delta[step][1]))
+    for step in allowed_steps:
+        print(step, areaSquares[step[1]][step[0]])
+        if "a" in areaSquares[step[1]][step[0]][0] and \
+                areaOpen[step[1]][step[0]][0] == 1:
+            extra_steps.add(step)
+    allowed_steps -= extra_steps
+    allowed_steps = list(allowed_steps)
+    print_area(allowed_steps, "Строка", ps="Координаты, куда ходить")
+    return allowed_steps
+
+
+def mouse_click_select(x_y: tuple, color: str, delay: float) -> list:
+    global scope, game_mode
+    x = (x_y[0] - place_x) // scope
+    y = (x_y[1] - place_y) // scope
+    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
+        for pawn in pawns:
+            if pawn["color"] == color and \
+                    x == pawn["current"][0] and \
+                    y == pawn["current"][1]:
+                pawn["select"] = True
+                game_mode = "move"
+                print("\033[35m{}\033[0m".format(f"Выбор пешки:         "
+                                                 f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
+                                                 f"{' ' * (30 - len(str(areaSquares[y][x])))}"
+                                                 f"Δt {delay}"))
+                print_area_window(f"{areaSquares[y][x]}\n{x}, {y}", x_y)
+                quantity_steps(x, y)
+                return check_steps(x, y)
+
+
+def mouse_click_move(x_y: tuple, move: list, delay: float):
+    global scope, game_mode, way_pawn
+    x = (x_y[0] - place_x) // scope
+    y = (x_y[1] - place_y) // scope
+    for pawn in pawns:
+        if x == pawn["current"][0] and y == pawn["current"][1] and pawn["select"]:
+            pawn["select"] = False
+            game_mode = "select"
+            way_pawn = []
+    if move:
+        for step in move:
+            if x == step[0] and y == step[1]:
+                for pawn in pawns:
+                    if pawn["select"]:
+                        pawn["select"] = False
+                        pawn["last"] = [pawn["current"][0], pawn["current"][1]]
+                        pawn["current"] = [x, y]
+                        open_square(x, y)
+                        game_mode = "select"
+                        way_pawn = []
+                        print("\033[35m{}\033[0m".format(f"Ход пешки:           "
+                                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
+                                                         f"{' ' * (30 - len(str(areaSquares[y][x])))}"
+                                                         f"Δt {delay}"))
+                        print_area_window(f"{areaSquares[y][x]}\n{x}, {y}", x_y)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # area_square = Get_area_square(area_square, 5, 10, value=39)
 
 area_square = clear_area(area_square)
