@@ -268,7 +268,7 @@ boats = [Boat("R", [6, 0], False),
 
 pawn_select = -1
 pawns = [Pawn("R", [3, 3], [3, 3]),
-         Pawn("Y", [6, 11], [12, 6]),
+         Pawn("Y", [6, 11], [2, 3]),
          Pawn("Y", [6, 11], [12, 6])]
 
 
@@ -598,7 +598,7 @@ def check_steps(x: int, y: int) -> list:
         elif areaSquares[y][x][0] == "h":
             checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
         elif areaSquares[y][x][0] == "p" and areaSquares[y][x][1]:
-            allowed_steps = allowed_steps | flight()
+            allowed_steps = flight()
         elif "a" in areaSquares[y][x][0]:
             checked_steps = areaSquares[y][x][1]
         for step in checked_steps:
@@ -619,17 +619,18 @@ def mouse_click_cancel_select(coord_xy: tuple, delay: float):
     global way_pawn, game_mode, pawn_select
     x = (coord_xy[0] - place_x) // scope
     y = (coord_xy[1] - place_y) // scope
-    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-        if x == pawns[pawn_select].current[0] and \
-                y == pawns[pawn_select].current[1]:
-            pawn_select = -1
-            game_mode = "select"
-            way_pawn = []
-            print("\033[35m{}\033[0m".format(f"Отмена выбора пешки: "
-                                             f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                             f"{' ' * (30 - len(str(areaSquares[y][x])))}"
-                                             f"Δt {delay}"))
-            show_area(areaSquares, areaOpen)
+    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares) and \
+            x == pawns[pawn_select].current[0] and \
+            y == pawns[pawn_select].current[1] and \
+            "a" not in areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0]:
+        pawn_select = -1
+        game_mode = "select"
+        way_pawn = []
+        print("\033[35m{}\033[0m".format(f"Отмена выбора пешки: "
+                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
+                                         f"{' ' * (30 - len(str(areaSquares[y][x])))}"
+                                         f"Δt {delay}"))
+        show_area(areaSquares, areaOpen)
 
 
 def check_second_steps(x: int, y: int) -> list:
@@ -758,7 +759,7 @@ def mouse_click(coord_xy: tuple, color: str, delay: float):
                         y == pawn.current[1]:
                     pawn_select = pawns.index(pawn)
             way_pawn = mouse_click_select(x, y, delay)
-        if game_mode == "move":
+        elif game_mode == "move":
             mouse_click_move(x, y, delay)
     show_area(areaSquares, areaOpen)
     if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
