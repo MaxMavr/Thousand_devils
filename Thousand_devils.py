@@ -250,17 +250,15 @@ class Boat:
 
 
 class Pawn:
-    def __init__(self, color: str, last: list, current: list, select: bool):
+    def __init__(self, color: str, last: list, current: list):
         self.color = color
         self.last = last
         self.current = current
-        self.select = select
 
     def info(self):
         print(f"{self.color}\n"
               f"{self.last}\n"
-              f"{self.current}\n"
-              f"{self.select}")
+              f"{self.current}\n")
 
 
 boats = [Boat("R", [6, 0], False),
@@ -268,10 +266,10 @@ boats = [Boat("R", [6, 0], False),
          Boat("Y", [6, 12], False),
          Boat("B", [12, 6], False)]
 
-
-pawns = [Pawn("R", [3, 3], [3, 3], False),
-         Pawn("Y", [6, 11], [12, 6], False),
-         Pawn("Y", [6, 11], [12, 6], False)]
+pawn_select = -1
+pawns = [Pawn("R", [3, 3], [3, 3]),
+         Pawn("Y", [6, 11], [12, 6]),
+         Pawn("Y", [6, 11], [12, 6])]
 
 
 def set_corners():
@@ -383,6 +381,9 @@ def mix_area(area: list):
                         elif chosen == "q":
                             area[y][x] = ["q", True]
                             break
+                        elif chosen == "l":
+                            area[y][x] = ["l", 3]
+                            break
                         else:
                             area[y][x][0] = chosen
                             break
@@ -434,6 +435,40 @@ def earthquake():
                   f"{temp_square2}")
 
 
+def illuminate(x: int, y: int):
+    global game_mode, pawn_select
+    print(f"Пешка на маяке: {pawn_select}")
+    if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1] >= 1:
+        if game_mode == "lighthouse":
+            if areaOpen[y][x][0] == 0 and \
+                    0 <= x < len(areaOpen) and 0 <= y < len(areaOpen):
+                print(f"☄ Маяк открыл клетку:"
+                      f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}"
+                      f"{areaSquares[y][x]}")
+                open_square(x, y)
+                areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1] -= 1
+                if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1] == 0:
+                    print("Маяк сломался")
+                    game_mode = "select"
+                    pawn_select = -1
+        else:
+            game_mode = "lighthouse"
+    else:
+        print("Маяк не работает")
+        game_mode = "select"
+        pawn_select = -1
+
+
+def flight() -> set:
+    allowed_steps = set()
+    for y in range(0, len(areaOpen)):
+        for x in range(0, len(areaOpen)):
+            if areaOpen[y][x][0] == 1 and \
+                    areaSquares[y][x][0] != "S":
+                allowed_steps.add((x, y))
+    return allowed_steps
+
+
 def change_scope(delta: int):
     global scope, place_x, place_y
     if 20 <= scope + delta <= 190:
@@ -454,7 +489,6 @@ def change_place(delta: tuple):
 
 
 def mark_stroke_squares(coords_xy: list, color: tuple):
-    global scope, place_x, place_y
     for coord_xy in coords_xy:
         pygame.draw.rect(window, color,
                          (coord_xy[0] * scope + place_x,
@@ -463,7 +497,6 @@ def mark_stroke_squares(coords_xy: list, color: tuple):
 
 
 def mark_fill_squares(coords_xy: list, color: tuple):
-    global scope, place_x, place_y
     square = pygame.Surface((scope, scope), pygame.SRCALPHA)
     square.fill(color)
     for coord_xy in coords_xy:
@@ -473,23 +506,21 @@ def mark_fill_squares(coords_xy: list, color: tuple):
 
 
 def kill_pawn():
-    for pawn in pawns:
-        if pawn.select:
-            pawns.remove(pawn)
-            print("\033[31m{}\033[0m".format(f"☠ Убита пешка:      "
-                                             f"{pawn.current[0]}, "
-                                             f"{pawn.current[1]} "
-                                             f"{pawn.color}"))
+    print("\033[31m{}\033[0m".format(f"☠ Убита пешка:      "
+                                     f"{pawns[pawn_select].current[0]}, "
+                                     f"{pawns[pawn_select].current[1]} "
+                                     f"{pawns[pawn_select].color}"))
+    pawns.remove(pawns[pawn_select])
 
 
 def quantity_steps(x: int, y: int) -> int:
 
-    def quantity_step_arrow(x: int, y: int, directions: list):
+    def quantity_step_arrow(x: int, y: int, checked_steps: list):
         nonlocal used_steps
         print(f"↗ Проверка стрелки:  "
               f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{used_steps}")
 
-        for digit in directions:
+        for digit in checked_steps:
             new_x = x + digit2delta[digit][0]
             new_y = y + digit2delta[digit][1]
             if 0 <= new_x < len(areaSquares) and \
@@ -536,13 +567,9 @@ def quantity_steps(x: int, y: int) -> int:
     extra_quantity = 0
     if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
         if areaSquares[y][x][0] == "S":
-            mode = "Coast"  # True, если не использовали
+            mode = "Coast"
         elif areaSquares[y][x][0] == "p" and areaSquares[y][x][1]:
-            for p_y in range(0, len(areaOpen)):
-                for p_x in range(0, len(areaOpen)):
-                    if areaOpen[p_y][p_x][0] == 1 and \
-                            areaSquares[p_y][p_x][0] != "S":
-                        used_steps.add((p_x, p_y))
+            used_steps = used_steps | flight()
         elif areaSquares[y][x][0] == "h":
             checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
         elif "a" in areaSquares[y][x][0]:
@@ -557,8 +584,8 @@ def quantity_steps(x: int, y: int) -> int:
             extra_quantity += 1
     used_steps = list(used_steps)
     print_area(used_steps, "Строка", ps="Координаты, куда можно сходить")
+    mark_fill_squares(list(used_steps), mark_select_color)
     show_area(areaSquares, areaOpen)
-    mark_fill_squares(used_steps, mark_select_color)
     return len(used_steps) - extra_quantity
 
 
@@ -570,13 +597,8 @@ def check_steps(x: int, y: int) -> list:
             checked_steps = [2, 4, 5, 7]
         elif areaSquares[y][x][0] == "h":
             checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
-        elif areaSquares[y][x][0] == "p":
-            if areaSquares[y][x][1]:  # True, если не использовали
-                for p_y in range(0, len(areaOpen)):
-                    for p_x in range(0, len(areaOpen)):
-                        if areaOpen[p_y][p_x][0] == 1 and \
-                                areaSquares[p_y][p_x][0] != "S":
-                            allowed_steps.add((p_x, p_y))
+        elif areaSquares[y][x][0] == "p" and areaSquares[y][x][1]:
+            allowed_steps = allowed_steps | flight()
         elif "a" in areaSquares[y][x][0]:
             checked_steps = areaSquares[y][x][1]
         for step in checked_steps:
@@ -594,160 +616,150 @@ def check_steps(x: int, y: int) -> list:
 
 
 def mouse_click_cancel_select(coord_xy: tuple, delay: float):
-    global way_pawn, scope, place_x, place_y, game_mode, pawns, way_pawn
+    global way_pawn, game_mode, pawn_select
     x = (coord_xy[0] - place_x) // scope
     y = (coord_xy[1] - place_y) // scope
     if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-        for pawn in pawns:
-            if pawn.select and \
-                    x == pawn.current[0] and \
-                    y == pawn.current[1]:
-                pawn.select = False
-                game_mode = "select"
-                way_pawn = []
-                print("\033[35m{}\033[0m".format(f"Отмена выбора пешки: "
-                                                 f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                                 f"{' ' * (30 - len(str(areaSquares[y][x])))}"
-                                                 f"Δt {delay}"))
-        show_area(areaSquares, areaOpen)
+        if x == pawns[pawn_select].current[0] and \
+                y == pawns[pawn_select].current[1]:
+            pawn_select = -1
+            game_mode = "select"
+            way_pawn = []
+            print("\033[35m{}\033[0m".format(f"Отмена выбора пешки: "
+                                             f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
+                                             f"{' ' * (30 - len(str(areaSquares[y][x])))}"
+                                             f"Δt {delay}"))
+            show_area(areaSquares, areaOpen)
 
 
 def check_second_steps(x: int, y: int) -> list:
-    global game_mode, pawns
-    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
+    global game_mode, pawn_select
+    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares) and pawn_select != -1:
         print("\033[33m{}\033[0m".format(f"Проверка клетки:     "
                                          f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
                                          f"{' ' * (30 - len(str(areaSquares[y][x])))}"))
-
         steps = []
-        for pawn in pawns:
-            if pawn.select:
+        if quantity_steps(pawns[pawn_select].current[0], pawns[pawn_select].current[1]) == 0:
+            kill_pawn()
+            pawn_select = -1
+            game_mode = "select"
+            return []
 
-                if quantity_steps(pawn.current[0], pawn.current[1]) == 0:
-                    kill_pawn()
-                    game_mode = "select"
-                    return []
+        if "a" in areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0]:
+            for digit in areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1]:
+                steps.append((pawns[pawn_select].current[0] + digit2delta[digit][0],
+                              pawns[pawn_select].current[1] + digit2delta[digit][1]))
+            return steps
 
-                if "a" in areaSquares[pawn.current[1]][pawn.current[0]][0]:
-                    for digit in areaSquares[pawn.current[1]][pawn.current[0]][1]:
-                        steps.append((pawn.current[0] + digit2delta[digit][0],
-                                      pawn.current[1] + digit2delta[digit][1]))
-                    return steps
+        if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "q" and \
+                areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1]:
+            earthquake()
+            areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1] = False
 
-                if areaSquares[pawn.current[1]][pawn.current[0]][0] == "q" and \
-                        areaSquares[pawn.current[1]][pawn.current[0]][1]:
-                    earthquake()
-                    areaSquares[pawn.current[1]][pawn.current[0]][1] = False
-                    pawn.select = False
-                    game_mode = "select"
-                    return []
+        if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "w":
+            kill_pawn()
+            pawn_select = -1
+            game_mode = "select"
+            return []
 
-                if areaSquares[pawn.current[1]][pawn.current[0]][0] == "w":
-                    kill_pawn()
-                    game_mode = "select"
-                    return []
+        if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "b":
+            for boat in boats:
+                if boat.color == pawns[pawn_select].color:
+                    pawns[pawn_select].current[0] = boat.current[0]
+                    pawns[pawn_select].current[1] = boat.current[1]
 
-                if areaSquares[pawn.current[1]][pawn.current[0]][0] == "b":
-                    for boat in boats:
-                        if boat.color == pawn.color:
-                            pawn.current[0] = boat.current[0]
-                            pawn.current[1] = boat.current[1]
+        if areaSquares[y][x][0] == "2":
+            if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "p" and \
+                    areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][1]:
+                areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][1] = False
+                return list(flight())
+            elif areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "h":
+                for digit in [9, 10, 11, 12, 13, 14, 15, 16]:
+                    steps.append((x + digit2delta[digit][0], y + digit2delta[digit][1]))
+                return steps
+            else:
+                delta_x = pawns[pawn_select].current[0] - pawns[pawn_select].last[0]
+                delta_y = pawns[pawn_select].current[1] - pawns[pawn_select].last[1]
+                pawns[pawn_select].last[0] = pawns[pawn_select].current[0]
+                pawns[pawn_select].last[1] = pawns[pawn_select].current[1]
+                pawns[pawn_select].current[0] += delta_x
+                pawns[pawn_select].current[1] += delta_y
+                open_square(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
+                return check_second_steps(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
 
-                if areaSquares[pawn.last[1]][pawn.last[0]][0] == "p":
-                    areaSquares[pawn.last[1]][pawn.last[0]][1] = False
+        if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "p":
+            areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][1] = False
 
-                if areaSquares[y][x][0] == "2":
-                    if areaSquares[pawn.last[1]][pawn.last[0]][0] == "p":
-                        for p_y in range(0, len(areaOpen)):
-                            for p_x in range(0, len(areaOpen)):
-                                if areaOpen[p_y][p_x][0] == 1 and \
-                                        areaSquares[p_y][p_x][0] != "S":
-                                    steps.append((p_x, p_y))
-                        return steps
-                    if areaSquares[pawn.last[1]][pawn.last[0]][0] == "h":
-                        for digit in [9, 10, 11, 12, 13, 14, 15, 16]:
-                            steps.append((x + digit2delta[digit][0], y + digit2delta[digit][1]))
-                        return steps
-                    else:
-                        delta_x = pawn.current[0] - pawn.last[0]
-                        delta_y = pawn.current[1] - pawn.last[1]
-                        pawn.last[0] = pawn.current[0]
-                        pawn.last[1] = pawn.current[1]
-                        pawn.current[0] += delta_x
-                        pawn.current[1] += delta_y
-                        open_square(pawn.current[0], pawn.current[1])
-                        return check_second_steps(pawn.current[0], pawn.current[1])
+        if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "l":
+            illuminate(-1, -1)
+            return []
 
-                if areaSquares[y][x][0] == "g":
-                    if areaSquares[y][x][1][0] == 2:
-                        pawn.current[1] = 0
-                    if areaSquares[y][x][1][0] == 4:
-                        pawn.current[0] = 0
-                    if areaSquares[y][x][1][0] == 5:
-                        pawn.current[0] = 12
-                    if areaSquares[y][x][1][0] == 7:
-                        pawn.current[1] = 12
-                    pawn.select = False
-                    game_mode = "select"
-                    return []
+        if areaSquares[y][x][0] == "g":
+            if areaSquares[y][x][1][0] == 2:
+                pawns[pawn_select].current[1] = 0
+            if areaSquares[y][x][1][0] == 4:
+                pawns[pawn_select].current[0] = 0
+            if areaSquares[y][x][1][0] == 5:
+                pawns[pawn_select].current[0] = 12
+            if areaSquares[y][x][1][0] == 7:
+                pawns[pawn_select].current[1] = 12
 
-                if areaSquares[y][x][0] == "c":
-                    pawn.current = [pawn.last[0], pawn.last[1]]
-                    return check_second_steps(pawn.current[0], pawn.current[1])
-
-        for pawn in pawns:
-            if pawn.select:
-                pawn.select = False
-                game_mode = "select"
-                return []
-
-
-def mouse_click_select(x: int, y: int, color: str, delay: float) -> list:
-    global game_mode, pawns
-    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-        for pawn in pawns:
-            if pawn.color == color and \
-                    x == pawn.current[0] and \
-                    y == pawn.current[1]:
-                pawn.select = True
-                game_mode = "move"
-                print("\033[35m{}\033[0m".format(f"\nВыбрана пешка:       "
-                                                 f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                                 f"{' ' * (30 - len(str(areaSquares[y][x])))}"
-                                                 f"Δt {delay}"))
-                if quantity_steps(x, y) == 0:
-                    kill_pawn()
-                    game_mode = "select"
-                else:
-                    return check_steps(x, y)
+        if areaSquares[y][x][0] == "c":
+            pawns[pawn_select].current = [pawns[pawn_select].last[0], pawns[pawn_select].last[1]]
+            return check_second_steps(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
+        pawn_select = -1
+        game_mode = "select"
         return []
 
 
+def mouse_click_select(x: int, y: int, delay: float) -> list:
+    global game_mode, pawn_select
+    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares) and pawn_select != -1:
+        game_mode = "move"
+        print("\033[35m{}\033[0m".format(f"\nВыбрана пешка:       "
+                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
+                                         f"{' ' * (30 - len(str(areaSquares[y][x])))}"
+                                         f"Δt {delay}"))
+        if quantity_steps(x, y) == 0:
+            kill_pawn()
+        else:
+            return check_steps(x, y)
+    pawn_select = -1
+    game_mode = "select"
+    return []
+
+
 def mouse_click_move(x: int, y: int, delay: float):
-    global game_mode, pawns, way_pawn
-    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares) and way_pawn:
+    global game_mode, way_pawn, pawn_select
+    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares) and way_pawn and pawn_select != -1:
         for step in way_pawn:
             if x == step[0] and y == step[1]:
-                for pawn in pawns:
-                    if pawn.select:
-                        pawn.last = [pawn.current[0], pawn.current[1]]
-                        pawn.current = [x, y]
-                        open_square(x, y)
-                        way_pawn = check_second_steps(x, y)
-                        print("\033[35m{}\033[0m".format(f"Ход пешки:           "
-                                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                                         f"{' ' * (30 - len(str(areaSquares[y][x])))}"
-                                                         f"Δt {delay}"))
+                pawns[pawn_select].last = [pawns[pawn_select].current[0], pawns[pawn_select].current[1]]
+                pawns[pawn_select].current = [x, y]
+                open_square(x, y)
+                way_pawn = check_second_steps(x, y)
+                print("\033[35m{}\033[0m".format(f"Ход пешки:           "
+                                                 f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
+                                                 f"{' ' * (30 - len(str(areaSquares[y][x])))}"
+                                                 f"Δt {delay}"))
 
 
 def mouse_click(coord_xy: tuple, color: str, delay: float):
-    global way_pawn, scope, place_x, place_y, game_mode
+    global way_pawn, game_mode, pawn_select
     x = (coord_xy[0] - place_x) // scope
     y = (coord_xy[1] - place_y) // scope
-    if game_mode == "select":
-        way_pawn = mouse_click_select(x, y, color, delay)
-    elif game_mode == "move":
-        mouse_click_move(x, y, delay)
+    if game_mode == "lighthouse":
+        illuminate(x, y)
+    else:
+        if game_mode == "select":
+            for pawn in pawns:
+                if pawn.color == color and \
+                        x == pawn.current[0] and \
+                        y == pawn.current[1]:
+                    pawn_select = pawns.index(pawn)
+            way_pawn = mouse_click_select(x, y, delay)
+        if game_mode == "move":
+            mouse_click_move(x, y, delay)
     show_area(areaSquares, areaOpen)
     if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
         print_area_window(f"{areaSquares[y][x]}\n{x}, {y}", coord_xy)
@@ -790,7 +802,8 @@ def show_area(area: list, opened: list):
                            scope / 4)
 
 
-print("\033[35m{}\033[0m".format("\n☸ Игра началась ☸"))
+print("\033[36m{}\033[0m".format("\n☸ Игра началась ☸"))
+
 way_pawn = []
 
 pygame.display.set_caption("Thousand devils")
@@ -811,7 +824,7 @@ areaSquares[7][8] = ["2"]
 areaSquares[7][3] = ["a2", [2]]
 areaSquares[8][3] = ["a2", [2]]
 areaSquares[9][3] = ["a2", [2]]
-areaSquares[8][7] = ["a1", [3]]
+areaSquares[8][7] = ["a7", [3, 4, 7]]
 
 areaSquares[9][2] = ["f"]
 areaSquares[9][4] = ["f"]
@@ -825,6 +838,9 @@ areaSquares[9][10] = ["c"]
 
 areaSquares[11][4] = ["a3", [4, 5]]
 areaSquares[11][5] = ["2"]
+areaSquares[6][9] = ["2"]
+areaSquares[3][4] = ["2"]
+areaSquares[2][10] = ["l", 3]
 
 print_area(areaSquares, "Массив", ps="Поле")
 print_area(areaSquares, "Поле", ps="Поле")
