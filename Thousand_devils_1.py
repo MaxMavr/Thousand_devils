@@ -460,7 +460,89 @@ def mouse_click_move(x_y: tuple, move: list, delay: float):
 
 
 
+def loop_search(start_x: int, start_y: int) -> bool:
 
+    def check_arrow(x: int, y: int):
+        nonlocal used_steps
+
+        print(f"↗ Проверка стрелки:  "
+              f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{used_steps}")
+
+        for digit in areaSquares[y][x][1]:
+            new_x = x + digit2delta[digit][0]
+            new_y = y + digit2delta[digit][1]
+            if 0 <= new_x < len(areaSquares) and \
+                    0 <= new_y < len(areaSquares):
+                if areaOpen[new_y][new_x][0] == 1:
+                    if "a" in areaSquares[new_y][new_x][0] and (new_x, new_y) not in used_steps:
+                        used_steps.add((new_x, new_y))
+                        check_arrow(new_x, new_y)
+                    elif (new_x, new_y) not in used_steps:
+                        check_step((new_x, new_y), (x, y))
+                else:
+                    used_steps.add((new_x, new_y))
+
+    def check_step(coord_xy: tuple, last_coord_xy: tuple):
+        nonlocal used_steps, checked_steps
+        x = coord_xy[0]
+        y = coord_xy[1]
+        old_x = last_coord_xy[0]
+        old_y = last_coord_xy[1]
+
+        print(f"☐ Проверка шага:     "
+              f"{x}, {y}"
+              f"{' ' * (4 - (x // 10 + y // 10))}{used_steps}   {checked_steps}")
+
+        if 0 <= coord_xy[0] < len(areaSquares) and 0 <= coord_xy[1] < len(areaSquares):
+            if areaOpen[coord_xy[1]][coord_xy[0]][0] == 1:
+                if areaSquares[y][x][0] == "2":
+                    checked_steps.append((x + (x - old_x), y + (y - old_y)))
+                elif "a" in areaSquares[y][x][0]:
+                    check_arrow(x, y)
+                elif (x, y) not in used_steps and \
+                        areaSquares[y][x][0] != "c":
+                    used_steps.add((x, y))
+            elif areaOpen[y][x][0] == 0:
+                used_steps.add((x, y))
+
+    checked_digits = [1, 2, 3, 4, 5, 6, 7, 8]
+    checked_steps = []
+    used_steps = set()
+    extra_quantity = 0
+    if 0 <= start_x < len(areaSquares) and \
+            0 <= start_y < len(areaSquares):
+        if areaSquares[start_y][start_x][0] == "S":
+            # mode = "Coast"
+            return False
+        elif areaSquares[start_y][start_x][0] == "p" and \
+                areaSquares[start_y][start_x][1]:
+            # used_steps = flight()
+            return False
+        elif areaSquares[start_y][start_x][0] == "h":
+            # checked_digits = [9, 10, 11, 12, 13, 14, 15, 16]
+            return False
+        elif "a" in areaSquares[start_y][start_x][0]:
+            checked_digits = areaSquares[start_y][start_x][1]
+
+        # Получаем из направлений координаты
+        for digit in checked_digits:
+            checked_steps.append((start_x + digit2delta[digit][0],
+                                  start_y + digit2delta[digit][1]))
+
+        # Проверяем координаты
+        for step in checked_steps:
+            check_step(step, (start_x, start_y))
+
+    for step in used_steps:
+        if ("a" in areaSquares[step[1]][step[0]][0] or
+            areaSquares[step[1]][step[0]][0] == "2") and \
+                areaOpen[step[1]][step[0]][0] == 1:
+            extra_quantity += 1
+    used_steps = list(used_steps)
+    print_area(used_steps, "Строка", ps="Координаты, куда можно сходить")
+    # mark_fill_squares(list(used_steps), mark_select_color)
+    # show_area(areaSquares, areaOpen)
+    return len(used_steps) - extra_quantity == 0
 
 
 

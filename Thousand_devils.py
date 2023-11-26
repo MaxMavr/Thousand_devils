@@ -250,15 +250,17 @@ class Boat:
 
 
 class Pawn:
-    def __init__(self, color: str, last: list, current: list):
+    def __init__(self, color: str, last: list, current: list, skip: int):
         self.color = color
         self.last = last
         self.current = current
+        self.skip = skip
 
     def info(self):
         print(f"{self.color}\n"
               f"{self.last}\n"
-              f"{self.current}\n")
+              f"{self.current}\n"
+              f"{self.skip}\n")
 
 
 boats = [Boat("R", [6, 0], False),
@@ -267,9 +269,16 @@ boats = [Boat("R", [6, 0], False),
          Boat("B", [12, 6], False)]
 
 pawn_select = -1
-pawns = [Pawn("R", [3, 3], [3, 3]),
-         Pawn("Y", [6, 11], [2, 3]),
-         Pawn("Y", [6, 11], [12, 6])]
+pawns = [Pawn("R", [3, 5], [3, 3], 0),
+         # Pawn("Y", [6, 11], [2, 3]),
+         Pawn("Y", [6, 11], [12, 6], 0),
+         Pawn("Y", [6, 11], [12, 6], 0),
+         Pawn("Y", [6, 11], [12, 6], 0),
+         Pawn("Y", [6, 11], [12, 6], 0),
+         Pawn("Y", [6, 11], [12, 6], 0),
+         Pawn("Y", [6, 11], [12, 6], 0),
+         Pawn("Y", [6, 11], [12, 6], 0),
+         Pawn("Y", [6, 11], [12, 6], 0)]
 
 
 def set_corners():
@@ -296,6 +305,11 @@ def set_corners():
     for i in range(0, len(areaSquares[len(areaSquares) - 1])):
         areaSquares[len(areaSquares) - 1][i][0] = "S"
         areaOpen[len(areaSquares) - 1][i][0] = 1
+
+
+def file2area(name_file: str):
+    open(name_file, 'r')
+    pass
 
 
 def clear_area(area: list):
@@ -344,6 +358,7 @@ def mix_area(area: list):
     clear_area(area)
     set_corners()
     temp_squares = squares.copy()
+    den_coords_xy = []
     for y in range(0, len(area)):
         for x in range(0, len(area[y])):
             if area[y][x][0] != "S":
@@ -384,9 +399,14 @@ def mix_area(area: list):
                         elif chosen == "l":
                             area[y][x] = ["l", 3]
                             break
+                        elif chosen == "d":
+                            den_coords_xy.append((x, y))
+                            break
                         else:
                             area[y][x][0] = chosen
                             break
+    for den_coord_xy in den_coords_xy:
+        area[den_coord_xy[1]][den_coord_xy[0]] = ["d", den_coords_xy]
 
 
 def print_area_window(text: str, coord_xy: tuple):
@@ -464,7 +484,8 @@ def flight() -> set:
     for y in range(0, len(areaOpen)):
         for x in range(0, len(areaOpen)):
             if areaOpen[y][x][0] == 1 and \
-                    areaSquares[y][x][0] != "S":
+                    areaSquares[y][x][0] != "S" and \
+                    areaSquares[y][x][0] != "c":
                 allowed_steps.add((x, y))
     return allowed_steps
 
@@ -513,80 +534,91 @@ def kill_pawn():
     pawns.remove(pawns[pawn_select])
 
 
-def quantity_steps(x: int, y: int) -> int:
+def kick_pawn():
+    print("\033[35m{}\033[0m".format(f"⎋ Пешка на корабле:  "
+                                     f"{pawns[pawn_select].current[0]}, "
+                                     f"{pawns[pawn_select].current[1]} "
+                                     f"{pawns[pawn_select].color}"))
+    for boat in boats:
+        if boat.color == pawns[pawn_select].color:
+            pawns[pawn_select].current[0] = boat.current[0]
+            pawns[pawn_select].current[1] = boat.current[1]
 
-    def quantity_step_arrow(x: int, y: int, checked_steps: list):
+
+def loop_search(start_x: int, start_y: int) -> bool:
+    def check_arrow(x: int, y: int):
         nonlocal used_steps
+
         print(f"↗ Проверка стрелки:  "
               f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{used_steps}")
 
-        for digit in checked_steps:
+        for digit in areaSquares[y][x][1]:
             new_x = x + digit2delta[digit][0]
             new_y = y + digit2delta[digit][1]
             if 0 <= new_x < len(areaSquares) and \
-                    0 <= new_y < len(areaSquares):
+                    0 <= new_y < len(areaSquares) and \
+                    (new_x, new_y) not in used_steps:
                 if areaOpen[new_y][new_x][0] == 1:
-                    if "a" in areaSquares[new_y][new_x][0] and (new_x, new_y) not in used_steps:
+                    if "a" in areaSquares[new_y][new_x][0]:
                         used_steps.add((new_x, new_y))
-                        quantity_step_arrow(new_x, new_y, areaSquares[new_y][new_x][1])
-                    elif areaSquares[new_y][new_x][0] == "S" and (new_x, new_y) not in used_steps:
-                        used_steps.add((new_x, new_y))
-                    elif (new_x, new_y) not in used_steps:
-                        quantity_step(new_x, new_y, digit)
+                        check_arrow(new_x, new_y)
+                    else:
+                        check_step((new_x, new_y), (x, y))
                 else:
                     used_steps.add((new_x, new_y))
 
-    def quantity_step(x: int, y: int, digit: int, mode="Field"):  # Field — Поле, Coast — берег
-        nonlocal used_steps
-        print(f"☐ Проверка шага:     "
-              f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{used_steps}")
+    def check_step(coord_xy: tuple, last_coord_xy: tuple):
+        nonlocal used_steps, checked_steps
+        x = coord_xy[0]
+        y = coord_xy[1]
+        old_x = last_coord_xy[0]
+        old_y = last_coord_xy[1]
 
-        if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-            if areaOpen[y][x][0] == 1:
+        print(f"☐ Проверка шага:     "
+              f"{x}, {y}"
+              f"{' ' * (4 - (x // 10 + y // 10))}{used_steps}   {checked_steps}")
+
+        if 0 <= coord_xy[0] < len(areaSquares) and \
+                0 <= coord_xy[1] < len(areaSquares):
+            if areaOpen[coord_xy[1]][coord_xy[0]][0] == 1:
                 if areaSquares[y][x][0] == "2":
-                    new_x = x + digit2delta[digit][0]
-                    new_y = y + digit2delta[digit][1]
-                    quantity_step(new_x, new_y, digit)
-                elif "a" in areaSquares[y][x][0]:
-                    quantity_step_arrow(x, y, areaSquares[y][x][1])
-                elif (x, y) not in used_steps and \
-                        areaSquares[y][x][0] == "S" and \
-                        mode == "Coast":
+                    check_step((x + (x - old_x), y + (y - old_y)), (x, y))
+                elif "a" in areaSquares[y][x][0] and (x, y) not in used_steps:
                     used_steps.add((x, y))
-                elif (x, y) not in used_steps and \
-                        areaSquares[y][x][0] != "c" and \
-                        areaSquares[y][x][0] != "S" and \
-                        mode == "Field":
+                    check_arrow(x, y)
+                elif areaSquares[y][x][0] != "c" and (x, y) not in used_steps:
                     used_steps.add((x, y))
-            elif areaOpen[y][x][0] == 0 and mode == "Field":
+            elif areaOpen[y][x][0] == 0 and (x, y) not in used_steps:
                 used_steps.add((x, y))
 
-    mode = "Field"
-    checked_steps = [1, 2, 3, 4, 5, 6, 7, 8]
+    checked_digits = [1, 2, 3, 4, 5, 6, 7, 8]
+    checked_steps = []
     used_steps = set()
     extra_quantity = 0
-    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-        if areaSquares[y][x][0] == "S":
-            mode = "Coast"
-        elif areaSquares[y][x][0] == "p" and areaSquares[y][x][1]:
-            used_steps = used_steps | flight()
-        elif areaSquares[y][x][0] == "h":
-            checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
-        elif "a" in areaSquares[y][x][0]:
-            checked_steps = areaSquares[y][x][1]
+    if 0 <= start_x < len(areaSquares) and \
+            0 <= start_y < len(areaSquares):
+
+        if "a" in areaSquares[start_y][start_x][0]:
+            checked_digits = areaSquares[start_y][start_x][1]
+
+        # Получаем из направлений координаты
+        for digit in checked_digits:
+            checked_steps.append((start_x + digit2delta[digit][0],
+                                  start_y + digit2delta[digit][1]))
+        # Проверяем координаты
         for step in checked_steps:
-            quantity_step(x + digit2delta[step][0],
-                          y + digit2delta[step][1],
-                          step, mode=mode)
+            check_step(step, (start_x, start_y))
+
     for step in used_steps:
-        if "a" in areaSquares[step[1]][step[0]][0] and \
+        if ("a" in areaSquares[step[1]][step[0]][0] or
+            areaSquares[step[1]][step[0]][0] == "2") and \
                 areaOpen[step[1]][step[0]][0] == 1:
             extra_quantity += 1
     used_steps = list(used_steps)
     print_area(used_steps, "Строка", ps="Координаты, куда можно сходить")
-    mark_fill_squares(list(used_steps), mark_select_color)
-    show_area(areaSquares, areaOpen)
-    return len(used_steps) - extra_quantity
+    # mark_fill_squares(list(used_steps), mark_select_color)
+    # show_area(areaSquares, areaOpen)
+    return len(used_steps) - extra_quantity == 0
 
 
 def check_steps(x: int, y: int) -> list:
@@ -597,6 +629,14 @@ def check_steps(x: int, y: int) -> list:
             checked_steps = [2, 4, 5, 7]
         elif areaSquares[y][x][0] == "h":
             checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
+        # elif areaSquares[y][x][0] == "d":
+        #     quantity_open = 0
+        #     for step in areaSquares[y][x][1]:
+        #         if areaOpen[step[1]][step[0]][0] == 1:
+        #             quantity_open += 1
+        #             allowed_steps.add(step)
+        #     if quantity_open < 2:
+        #         return []
         elif areaSquares[y][x][0] == "p" and areaSquares[y][x][1]:
             allowed_steps = flight()
         elif "a" in areaSquares[y][x][0]:
@@ -610,9 +650,8 @@ def check_steps(x: int, y: int) -> list:
                     allowed_steps.add((new_x, new_y))
                 elif areaOpen[new_y][new_x][0] == 0:
                     allowed_steps.add((new_x, new_y))
-    allowed_steps = list(allowed_steps)
-    print_area(allowed_steps, "Строка", ps="Координаты, куда ходить")
-    return allowed_steps
+    print_area(list(allowed_steps), "Строка", ps="Координаты, куда ходить")
+    return list(allowed_steps)
 
 
 def mouse_click_cancel_select(coord_xy: tuple, delay: float):
@@ -640,7 +679,7 @@ def check_second_steps(x: int, y: int) -> list:
                                          f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
                                          f"{' ' * (30 - len(str(areaSquares[y][x])))}"))
         steps = []
-        if quantity_steps(pawns[pawn_select].current[0], pawns[pawn_select].current[1]) == 0:
+        if loop_search(pawns[pawn_select].current[0], pawns[pawn_select].current[1]):
             kill_pawn()
             pawn_select = -1
             game_mode = "select"
@@ -664,10 +703,7 @@ def check_second_steps(x: int, y: int) -> list:
             return []
 
         if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "b":
-            for boat in boats:
-                if boat.color == pawns[pawn_select].color:
-                    pawns[pawn_select].current[0] = boat.current[0]
-                    pawns[pawn_select].current[1] = boat.current[1]
+            kick_pawn()
 
         if areaSquares[y][x][0] == "2":
             if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "p" and \
@@ -721,7 +757,7 @@ def mouse_click_select(x: int, y: int, delay: float) -> list:
                                          f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
                                          f"{' ' * (30 - len(str(areaSquares[y][x])))}"
                                          f"Δt {delay}"))
-        if quantity_steps(x, y) == 0:
+        if loop_search(x, y):
             kill_pawn()
         else:
             return check_steps(x, y)
@@ -803,6 +839,425 @@ def show_area(area: list, opened: list):
                            scope / 4)
 
 
+def set_1test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+    areaSquares[3][6] = ["a2", [5]]
+    areaSquares[3][7] = ["a2", [4]]
+    areaSquares[6][6] = ["h"]
+    areaSquares[7][8] = ["2"]
+
+    areaSquares[7][3] = ["a2", [2]]
+    areaSquares[8][3] = ["a2", [2]]
+    areaSquares[9][3] = ["a2", [2]]
+    areaSquares[8][7] = ["a7", [3, 4, 7]]
+
+    areaSquares[9][2] = ["f"]
+    areaSquares[9][4] = ["f"]
+    areaSquares[3][3] = ["p", True]
+    areaSquares[5][4] = ["c"]
+    areaSquares[11][8] = ["g", [4]]
+    areaSquares[6][11] = ["q", True]
+
+    areaSquares[10][9] = ["a1", [3]]
+    areaSquares[9][10] = ["c"]
+
+    areaSquares[11][4] = ["a2", [5]]
+    areaSquares[11][6] = ["a2", [4]]
+
+    # areaSquares[11][4] = ["a3", [4, 5]]
+    # areaSquares[11][6] = ["a3", [4, 5]]
+    areaSquares[11][5] = ["2"]
+    areaSquares[6][9] = ["2"]
+    areaSquares[3][4] = ["2"]
+    areaSquares[2][10] = ["l", 3]
+
+
+def set_2test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+    areaSquares[5][3] = ["2"]
+    areaSquares[6][3] = ["2"]
+    areaSquares[7][3] = ["2"]
+    areaSquares[8][3] = ["2"]
+
+    areaSquares[6][4] = ["2"]
+    areaSquares[7][4] = ["2"]
+    areaSquares[8][4] = ["2"]
+
+    areaSquares[7][5] = ["2"]
+    areaSquares[8][5] = ["2"]
+
+    areaSquares[8][6] = ["2"]
+
+    areaSquares[5][2] = ["a2", [5]]
+    areaSquares[6][2] = ["a2", [5]]
+    areaSquares[7][2] = ["a2", [5]]
+    areaSquares[8][2] = ["a2", [5]]
+
+    areaSquares[5][4] = ["a2", [4]]
+    areaSquares[6][5] = ["a2", [4]]
+    areaSquares[7][6] = ["a2", [4]]
+    areaSquares[8][7] = ["a2", [4]]
+
+    areaSquares[3][2] = ["a1", [3]]
+    areaSquares[2][3] = ["a1", [6]]
+
+    areaSquares[2][5] = ["a1", [8]]
+    areaSquares[3][6] = ["a1", [1]]
+
+    areaSquares[2][8] = ["a2", [5]]
+    areaSquares[2][9] = ["a2", [4]]
+
+
+def set_3test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+    areaSquares[3][1] = ["a1", [3]]
+    areaSquares[4][1] = ["a1", [3]]
+    areaSquares[5][1] = ["a1", [3]]
+    areaSquares[6][1] = ["a1", [3]]
+
+    areaSquares[1][3] = ["a1", [6]]
+    areaSquares[1][4] = ["a1", [6]]
+    areaSquares[1][5] = ["a1", [6]]
+    areaSquares[1][6] = ["a1", [6]]
+
+    areaSquares[6][5] = ["a1", [8]]
+    areaSquares[6][6] = ["a1", [8]]
+    areaSquares[6][7] = ["a1", [8]]
+    areaSquares[6][8] = ["a1", [8]]
+
+    areaSquares[8][10] = ["a1", [1]]
+    areaSquares[9][10] = ["a1", [1]]
+    areaSquares[10][10] = ["a1", [1]]
+    areaSquares[11][10] = ["a1", [1]]
+
+    areaSquares[2][2] = ["2"]
+    areaSquares[3][2] = ["2"]
+    areaSquares[4][2] = ["2"]
+    areaSquares[5][2] = ["2"]
+
+    areaSquares[2][3] = ["2"]
+    areaSquares[3][3] = ["2"]
+    areaSquares[4][3] = ["2"]
+
+    areaSquares[2][4] = ["2"]
+    areaSquares[3][4] = ["2"]
+
+    areaSquares[2][5] = ["2"]
+
+    areaSquares[7][9] = ["2"]
+    areaSquares[8][9] = ["2"]
+    areaSquares[9][9] = ["2"]
+    areaSquares[10][9] = ["2"]
+
+    areaSquares[7][8] = ["2"]
+    areaSquares[8][8] = ["2"]
+    areaSquares[9][8] = ["2"]
+
+    areaSquares[7][7] = ["2"]
+    areaSquares[8][7] = ["2"]
+
+    areaSquares[7][6] = ["2"]
+
+
+def set_4test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+
+    areaSquares[2][3] = ["a2", [5]]
+    areaSquares[2][4] = ["a2", [4]]
+    areaSquares[2][5] = ["a2", [4]]
+    areaSquares[2][7] = ["a2", [5]]
+    areaSquares[2][8] = ["a2", [5]]
+    areaSquares[2][9] = ["a2", [4]]
+
+    areaSquares[3][2] = ["a2", [5]]
+    areaSquares[3][3] = ["a2", [4]]
+    areaSquares[3][4] = ["a2", [4]]
+    areaSquares[3][5] = ["a2", [4]]
+    areaSquares[3][7] = ["a2", [5]]
+    areaSquares[3][8] = ["a2", [5]]
+    areaSquares[3][9] = ["a2", [5]]
+    areaSquares[3][10] = ["a2", [4]]
+
+    areaSquares[4][1] = ["a2", [5]]
+    areaSquares[4][2] = ["a2", [4]]
+    areaSquares[4][3] = ["a2", [4]]
+    areaSquares[4][4] = ["a2", [4]]
+    areaSquares[4][5] = ["a2", [4]]
+    areaSquares[4][7] = ["a2", [5]]
+    areaSquares[4][8] = ["a2", [5]]
+    areaSquares[4][9] = ["a2", [5]]
+    areaSquares[4][10] = ["a2", [5]]
+    areaSquares[4][11] = ["a2", [4]]
+
+    areaSquares[7][6] = ["a1", [6]]
+    areaSquares[7][8] = ["a1", [6]]
+    areaSquares[7][10] = ["a1", [6]]
+
+    areaSquares[8][5] = ["a1", [6]]
+    areaSquares[8][7] = ["a1", [6]]
+    areaSquares[8][9] = ["a1", [6]]
+
+    areaSquares[9][4] = ["a1", [6]]
+    areaSquares[9][6] = ["a1", [6]]
+    areaSquares[9][8] = ["a1", [3]]
+
+    areaSquares[10][3] = ["a1", [6]]
+    areaSquares[10][5] = ["a1", [3]]
+
+    areaSquares[11][2] = ["a1", [3]]
+
+
+def set_5test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+
+    areaSquares[2][1] = ["a2", [7]]
+    areaSquares[3][1] = ["a2", [5]]
+    areaSquares[3][2] = ["a1", [1]]
+
+    areaSquares[2][4] = ["a2", [7]]
+    areaSquares[2][5] = ["a2", [4]]
+    areaSquares[3][4] = ["a1", [3]]
+
+    areaSquares[2][7] = ["a2", [5]]
+    areaSquares[2][8] = ["a2", [7]]
+    areaSquares[3][8] = ["a1", [1]]
+
+    areaSquares[2][11] = ["a1", [6]]
+    areaSquares[3][11] = ["a2", [2]]
+    areaSquares[3][10] = ["a2", [5]]
+
+    areaSquares[9][9] = ["a2", [5]]
+    areaSquares[10][10] = ["a2", [4]]
+    areaSquares[9][10] = ["a2", [7]]
+    areaSquares[10][9] = ["a2", [2]]
+
+    areaSquares[5][1] = ["a2", [7]]
+    areaSquares[6][1] = ["2"]
+    areaSquares[6][2] = ["2"]
+    areaSquares[7][1] = ["a2", [5]]
+    areaSquares[7][2] = ["2"]
+    areaSquares[7][3] = ["a1", [1]]
+
+    areaSquares[5][5] = ["a2", [7]]
+    areaSquares[5][6] = ["2"]
+    areaSquares[5][7] = ["a2", [4]]
+    areaSquares[6][5] = ["2"]
+    areaSquares[6][6] = ["2"]
+    areaSquares[7][5] = ["a1", [3]]
+
+    areaSquares[9][1] = ["a1", [8]]
+    areaSquares[9][2] = ["2"]
+    areaSquares[9][3] = ["a2", [4]]
+    areaSquares[10][2] = ["2"]
+    areaSquares[10][3] = ["2"]
+    areaSquares[11][3] = ["a2", [2]]
+
+    areaSquares[9][7] = ["a1", [6]]
+    areaSquares[10][7] = ["2"]
+    areaSquares[10][6] = ["2"]
+    areaSquares[11][7] = ["a2", [2]]
+    areaSquares[11][6] = ["2"]
+    areaSquares[11][5] = ["a2", [5]]
+
+
+def set_6test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+
+    areaSquares[1][3] = ["a1", [6]]
+    areaSquares[2][2] = ["a1", [8]]
+    areaSquares[2][4] = ["a1", [1]]
+    areaSquares[3][3] = ["a1", [3]]
+
+    areaSquares[5][1] = ["a2", [5]]
+    areaSquares[5][2] = ["2"]
+    areaSquares[5][3] = ["a2", [7]]
+    areaSquares[6][1] = ["2"]
+
+    areaSquares[6][3] = ["2"]
+    areaSquares[7][1] = ["a2", [2]]
+    areaSquares[7][2] = ["2"]
+    areaSquares[7][3] = ["a2", [4]]
+
+    areaSquares[5][7] = ["a1", [8]]
+    areaSquares[6][8] = ["2"]
+    areaSquares[7][9] = ["a1", [6]]
+    areaSquares[8][8] = ["2"]
+    areaSquares[9][7] = ["a1", [1]]
+    areaSquares[8][6] = ["2"]
+    areaSquares[7][5] = ["a1", [3]]
+    areaSquares[6][6] = ["2"]
+
+
+def set_7test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+
+    areaSquares[2][2] = ["a2", [5]]
+    areaSquares[2][3] = ["a3", [4, 5]]
+    areaSquares[2][4] = ["a2", [4]]
+
+    areaSquares[1][6] = ["a2", [7]]
+    areaSquares[2][6] = ["a3", [2, 7]]
+    areaSquares[3][6] = ["a2", [2]]
+
+    areaSquares[4][3] = ["a1", [6]]
+    areaSquares[5][2] = ["a4", [3, 6]]
+    areaSquares[6][1] = ["a1", [3]]
+
+    areaSquares[8][1] = ["a1", [8]]
+    areaSquares[9][2] = ["a4", [1, 8]]
+    areaSquares[10][3] = ["a1", [1]]
+
+    areaSquares[5][6] = ["a2", [7]]
+    areaSquares[6][5] = ["a2", [5]]
+    areaSquares[6][6] = ["a6", [2, 4, 5, 7]]
+    areaSquares[6][7] = ["a2", [4]]
+    areaSquares[7][6] = ["a2", [2]]
+
+    areaSquares[9][5] = ["a1", [8]]
+    areaSquares[9][7] = ["a1", [6]]
+    areaSquares[10][6] = ["a5", [1, 3, 6, 8]]
+    areaSquares[11][5] = ["a1", [3]]
+    areaSquares[11][7] = ["a1", [1]]
+
+
+def set_8test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+
+    areaSquares[2][4] = ["a1", [6]]
+    areaSquares[3][2] = ["a2", [5]]
+    areaSquares[3][3] = ["a7", [3, 4, 7]]
+    areaSquares[4][3] = ["a2", [2]]
+
+    areaSquares[2][7] = ["a1", [8]]
+    areaSquares[3][8] = ["a7", [1, 7, 5]]
+    areaSquares[3][9] = ["a2", [4]]
+    areaSquares[4][8] = ["a2", [2]]
+
+    areaSquares[7][3] = ["a2", [7]]
+    areaSquares[8][2] = ["a2", [5]]
+    areaSquares[8][3] = ["a7", [8, 2, 4]]
+    areaSquares[9][4] = ["a1", [1]]
+
+    areaSquares[7][8] = ["a2", [7]]
+    areaSquares[8][8] = ["a7", [6, 2, 5]]
+    areaSquares[8][9] = ["a2", [4]]
+    areaSquares[9][7] = ["a1", [3]]
+
+
+def set_9test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+
+    areaSquares[2][2] = ["a6", [2, 4, 5, 7]]
+    areaSquares[3][3] = ["a6", [2, 4, 5, 7]]
+    areaSquares[2][3] = ["a6", [2, 4, 5, 7]]
+    areaSquares[3][2] = ["a6", [2, 4, 5, 7]]
+
+    areaSquares[2][6] = ["a7", [6, 2, 5]]
+    areaSquares[3][5] = ["a7", [3, 4, 7]]
+
+    areaSquares[5][2] = ["a2", [5]]
+    areaSquares[5][3] = ["a3", [4, 5]]
+
+    areaSquares[6][5] = ["a4", [3, 6]]
+    areaSquares[5][6] = ["a4", [3, 6]]
+
+    areaSquares[7][3] = ["a3", [4, 5]]
+    areaSquares[7][2] = ["a3", [2, 7]]
+    areaSquares[8][2] = ["a3", [4, 5]]
+    areaSquares[8][3] = ["a3", [2, 7]]
+
+    areaSquares[8][5] = ["a3", [4, 5]]
+    areaSquares[8][6] = ["a3", [4, 5]]
+
+    areaSquares[10][2] = ["a7", [1, 5, 7]]
+    areaSquares[10][3] = ["a7", [3, 4, 7]]
+    areaSquares[11][2] = ["a7", [6, 2, 5]]
+    areaSquares[11][3] = ["a7", [8, 2, 4]]
+
+    areaSquares[2][9] = ["a5", [1, 3, 6, 8]]
+    areaSquares[2][11] = ["a5", [1, 3, 6, 8]]
+    areaSquares[3][10] = ["a5", [1, 3, 6, 8]]
+    areaSquares[4][9] = ["a5", [1, 3, 6, 8]]
+    areaSquares[4][11] = ["a5", [1, 3, 6, 8]]
+
+
+def set_10test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+
+    areaSquares[2][2] = ["a6", [2, 4, 5, 7]]
+    areaSquares[2][3] = ["2"]
+    areaSquares[2][4] = ["a6", [2, 4, 5, 7]]
+    areaSquares[3][2] = ["2"]
+
+    areaSquares[3][4] = ["2"]
+    areaSquares[4][2] = ["a6", [2, 4, 5, 7]]
+    areaSquares[4][3] = ["2"]
+    areaSquares[4][4] = ["a6", [2, 4, 5, 7]]
+
+    areaSquares[6][2] = ["a7", [1, 5, 7]]
+    areaSquares[6][3] = ["2"]
+    areaSquares[6][4] = ["a7", [3, 4, 7]]
+    areaSquares[7][2] = ["2"]
+
+    areaSquares[7][4] = ["2"]
+    areaSquares[8][2] = ["a7", [6, 2, 5]]
+    areaSquares[8][3] = ["2"]
+    areaSquares[8][4] = ["a7", [8, 2, 4]]
+
+    areaSquares[10][2] = ["a2", [5]]
+    areaSquares[10][3] = ["2"]
+    areaSquares[10][4] = ["a3", [4, 5]]
+
+    areaSquares[1][8] = ["a7", [6, 2, 5]]
+    areaSquares[2][7] = ["2"]
+    areaSquares[3][6] = ["a7", [3, 4, 7]]
+
+    areaSquares[5][8] = ["a4", [3, 6]]
+    areaSquares[6][7] = ["2"]
+    areaSquares[7][6] = ["a4", [3, 6]]
+
+    areaSquares[10][6] = ["a3", [4, 5]]
+    areaSquares[10][7] = ["2"]
+    areaSquares[10][8] = ["a3", [4, 5]]
+
+
+def set_11test_area():
+    clear_area(areaOpen)
+    clear_area(areaSquares)
+    fill_area(areaSquares, "e2")
+
+    areaSquares[4][4] = ["a5", [1, 3, 6, 8]]
+    areaSquares[5][5] = ["2"]
+    areaSquares[6][6] = ["a5", [1, 3, 6, 8]]
+    areaSquares[7][7] = ["2"]
+    areaSquares[8][8] = ["a5", [1, 3, 6, 8]]
+
+    areaSquares[4][8] = ["a5", [1, 3, 6, 8]]
+    areaSquares[5][7] = ["2"]
+    areaSquares[7][5] = ["2"]
+    areaSquares[8][4] = ["a5", [1, 3, 6, 8]]
+
+
 print("\033[36m{}\033[0m".format("\n☸ Игра началась ☸"))
 
 way_pawn = []
@@ -813,35 +1268,7 @@ pygame.display.set_icon(pygame.image.load("IMG/empty1.png"))
 clear_area(areaOpen)
 clear_area(areaSquares)
 
-set_corners()
-
-# Строчки для теста цикл: —> <—
-fill_area(areaSquares, "e2")
-areaSquares[3][6] = ["a2", [5]]
-areaSquares[3][7] = ["a2", [4]]
-areaSquares[6][6] = ["h"]
-areaSquares[7][8] = ["2"]
-
-areaSquares[7][3] = ["a2", [2]]
-areaSquares[8][3] = ["a2", [2]]
-areaSquares[9][3] = ["a2", [2]]
-areaSquares[8][7] = ["a7", [3, 4, 7]]
-
-areaSquares[9][2] = ["f"]
-areaSquares[9][4] = ["f"]
-areaSquares[3][3] = ["p", True]
-areaSquares[5][4] = ["c"]
-areaSquares[11][8] = ["g", [4]]
-areaSquares[6][11] = ["q", True]
-
-areaSquares[10][9] = ["a1", [3]]
-areaSquares[9][10] = ["c"]
-
-areaSquares[11][4] = ["a3", [4, 5]]
-areaSquares[11][5] = ["2"]
-areaSquares[6][9] = ["2"]
-areaSquares[3][4] = ["2"]
-areaSquares[2][10] = ["l", 3]
+set_1test_area()
 
 print_area(areaSquares, "Массив", ps="Поле")
 print_area(areaSquares, "Поле", ps="Поле")
@@ -891,4 +1318,26 @@ while running:
             elif event.key == pygame.K_o:
                 fill_area(areaOpen, 1)
                 show_area(areaSquares, areaOpen)
+
+            elif event.key == pygame.K_0:
+                set_2test_area()
+            elif event.key == pygame.K_1:
+                set_3test_area()
+            elif event.key == pygame.K_2:
+                set_4test_area()
+            elif event.key == pygame.K_3:
+                set_5test_area()
+            elif event.key == pygame.K_4:
+                set_6test_area()
+            elif event.key == pygame.K_5:
+                set_7test_area()
+            elif event.key == pygame.K_6:
+                set_8test_area()
+            elif event.key == pygame.K_7:
+                set_9test_area()
+            elif event.key == pygame.K_8:
+                set_10test_area()
+            elif event.key == pygame.K_9:
+                set_11test_area()
+
     clock.tick(fps)
