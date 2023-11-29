@@ -246,8 +246,8 @@ class Boat:
         self.current = current
 
     def info(self):
-        print(f"{self.color}\n"
-              f"{self.current}\n")
+        print(f"Цвет:            {self.color}\n"
+              f"Нынешняя клетка: {self.current}\n")
 
 
 class Pawn:
@@ -258,10 +258,10 @@ class Pawn:
         self.boat_index = boat_index
 
     def info(self):
-        print(f"{self.color}\n"
-              f"{self.last}\n"
-              f"{self.current}\n"
-              f"{self.boat_index}\n")
+        print(f"Цвет:            {self.color}\n"
+              f"Прошлая клетка:  {self.last}\n"
+              f"Нынешняя клетка: {self.current}\n"
+              f"Номер корабля:   {self.boat_index}\n")
 
 
 boats = [Boat("R", [6, 0]),
@@ -270,7 +270,7 @@ boats = [Boat("R", [6, 0]),
          Boat("Y", [12, 6])]
 
 pawn_select = -1
-pawns = [Pawn("R", [3, 5], [3, 3], 0),
+pawns = [Pawn("Y", [6, 11], [12, 6], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
@@ -278,7 +278,7 @@ pawns = [Pawn("R", [3, 5], [3, 3], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
-         Pawn("Y", [6, 11], [12, 6], 0)]
+         Pawn("R", [3, 5], [3, 3], 0)]
 
 for boat_setup in boats:
     for pawn_setup in pawns:
@@ -411,7 +411,7 @@ def mix_area(area: list):
                             area[y][x][0] = chosen
                             break
     for den_coord_xy in den_coords_xy:
-        area[den_coord_xy[1]][den_coord_xy[0]] = ["d", den_coords_xy]
+        area[den_coord_xy[1]][den_coord_xy[0]] = ["d", tuple(den_coords_xy)]
 
 
 def print_area_window(text: str, coord_xy: tuple):
@@ -659,13 +659,50 @@ def loop_search(start_x: int, start_y: int) -> bool:
 
 def check_steps(x: int, y: int) -> list:
     global pawn_select
-    mode = "Field"
     checked_steps = [1, 2, 3, 4, 5, 6, 7, 8]
     allowed_steps = set()
     if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
         if areaSquares[y][x][0] == "S":
-            mode = "Coast"
             checked_steps = [2, 4, 5, 7]
+
+            if [x, y] == boats[pawns[pawn_select].boat_index].current:
+
+                for step in checked_steps:
+                    new_x = x + digit2delta[step][0]
+                    new_y = y + digit2delta[step][1]
+
+                    alpha_wall = False
+                    is_island = False
+
+                    if inside_field(new_x-1, new_y-1) and not alpha_wall:
+                        alpha_wall = areaSquares[new_y-1][new_x-1][0] == "S"
+
+                    if inside_field(new_x+1, new_y+1) and not alpha_wall:
+                        alpha_wall = areaSquares[new_y+1][new_x+1][0] == "S"
+
+                    if inside_field(new_x+1, new_y-1) and not alpha_wall:
+                        alpha_wall = areaSquares[new_y-1][new_x+1][0] == "S"
+
+                    if inside_field(new_x-1, new_y+1) and not alpha_wall:
+                        alpha_wall = areaSquares[new_y+1][new_x-1][0] == "S"
+
+                    if inside_field(new_x, new_y):
+                        is_island = areaSquares[new_y][new_x][0] != "S"
+
+                    if alpha_wall or is_island:
+                        checked_steps.remove(step)
+
+            else:
+                for step in checked_steps:
+                    new_x = x + digit2delta[step][0]
+                    new_y = y + digit2delta[step][1]
+
+                    if areaSquares[new_y][new_x][0] != "S":
+                        checked_steps.remove(step)
+
+
+
+
         elif areaSquares[y][x][0] == "h":
             checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
 
@@ -826,7 +863,11 @@ def mouse_click_move(x: int, y: int, delay: float):
                 pawns[pawn_select].last = [pawns[pawn_select].current[0], pawns[pawn_select].current[1]]
                 pawns[pawn_select].current = [x, y]
                 open_square(x, y)
-                way_pawn = check_second_steps(x, y)
+
+                print(f"boats       {boats[pawns[pawn_select].boat_index].current}")
+                print(f"pawns       {pawns[pawn_select].last}")
+                print(f"pawn_select {pawn_select}")
+                pawns[pawn_select].info()
 
                 if pawns[pawn_select].last == boats[pawns[pawn_select].boat_index].current:
                     boat = boats[pawns[pawn_select].boat_index]
@@ -849,14 +890,22 @@ def mouse_click_move(x: int, y: int, delay: float):
                     if inside_field(x, y):
                         is_island = areaSquares[y][x][0] != "S"
 
+                    print(f"is_island   {is_island}")
+                    print(f"alpha_wall  {alpha_wall}")
+                    print(f"            {not (alpha_wall or is_island)}")
+
                     if not (alpha_wall or is_island):
                         for pawn in pawns:
                             if pawn.current == boat.current and \
                                     pawn.color == boat.color:
+                                pawn.last[0] = pawn.current[0]
+                                pawn.last[1] = pawn.current[1]
                                 pawn.current[0] = x
                                 pawn.current[1] = y
                         boat.current[0] = x
                         boat.current[1] = y
+
+                way_pawn = check_second_steps(x, y)
 
                 print("\033[35m{}\033[0m".format(f"Ход пешки:           "
                                                  f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
@@ -969,6 +1018,8 @@ def set_1test_area():
     areaSquares[3][4] = ["2"]
     areaSquares[2][10] = ["l", 3]
     areaSquares[1][4] = ["2"]
+
+    areaSquares[6][11] = ["a2", [4]]
 
 
 def set_2test_area():
