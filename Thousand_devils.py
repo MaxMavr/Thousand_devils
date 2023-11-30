@@ -270,7 +270,7 @@ boats = [Boat("R", [6, 0]),
          Boat("Y", [12, 6])]
 
 pawn_select = -1
-pawns = [Pawn("Y", [6, 11], [12, 6], 0),
+pawns = [Pawn("Y", [6, 11], [2, 4], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
          Pawn("Y", [6, 11], [12, 6], 0),
@@ -490,8 +490,7 @@ def flight() -> set:
             if areaOpen[y][x][0] == 1 and \
                     areaSquares[y][x][0] != "S" and \
                     areaSquares[y][x][0] != "c" and \
-                    areaSquares[y][x][0] != "2" and \
-                    "a" not in areaSquares[y][x][0]:
+                    areaSquares[y][x][0] != "2":
                 allowed_steps.add((x, y))
     return allowed_steps
 
@@ -661,52 +660,90 @@ def check_steps(x: int, y: int) -> list:
     global pawn_select
     checked_steps = [1, 2, 3, 4, 5, 6, 7, 8]
     allowed_steps = set()
+    mode = "Field"
     if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
         if areaSquares[y][x][0] == "S":
-            checked_steps = [2, 4, 5, 7]
+            checked_steps = []
 
             if [x, y] == boats[pawns[pawn_select].boat_index].current:
+                mode = "Boat"
+                condition = "None"
 
-                for step in checked_steps:
+                for step in [2, 4, 5, 7]:
                     new_x = x + digit2delta[step][0]
                     new_y = y + digit2delta[step][1]
-
-                    alpha_wall = False
-                    is_island = False
-
-                    if inside_field(new_x-1, new_y-1) and not alpha_wall:
-                        alpha_wall = areaSquares[new_y-1][new_x-1][0] == "S"
-
-                    if inside_field(new_x+1, new_y+1) and not alpha_wall:
-                        alpha_wall = areaSquares[new_y+1][new_x+1][0] == "S"
-
-                    if inside_field(new_x+1, new_y-1) and not alpha_wall:
-                        alpha_wall = areaSquares[new_y-1][new_x+1][0] == "S"
-
-                    if inside_field(new_x-1, new_y+1) and not alpha_wall:
-                        alpha_wall = areaSquares[new_y+1][new_x-1][0] == "S"
 
                     if inside_field(new_x, new_y):
-                        is_island = areaSquares[new_y][new_x][0] != "S"
+                        if areaSquares[new_y][new_x][0] == "S":
+                            if step == 2 or step == 7:
+                                condition = "vertical"
+                            elif step == 4 or step == 5:
+                                condition = "horizontal"
 
-                    if alpha_wall or is_island:
-                        checked_steps.remove(step)
+                if inside_field(x-1, y-1) and areaSquares[y-1][x-1][0] == "S":
+                    if condition == "vertical":
+                        checked_steps = [4, 7]
+                    elif condition == "horizontal":
+                        checked_steps = [2, 5]
+
+                elif inside_field(x+1, y+1) and areaSquares[y+1][x+1][0] == "S":
+                    if condition == "vertical":
+                        checked_steps = [2, 5]
+                    elif condition == "horizontal":
+                        checked_steps = [4, 7]
+
+                elif inside_field(x+1, y-1) and areaSquares[y-1][x+1][0] == "S":
+                    if condition == "vertical":
+                        checked_steps = [5, 7]
+                    elif condition == "horizontal":
+                        checked_steps = [2, 4]
+
+                elif inside_field(x-1, y+1) and areaSquares[y+1][x-1][0] == "S":
+                    if condition == "vertical":
+                        checked_steps = [2, 4]
+                    elif condition == "horizontal":
+                        checked_steps = [5, 7]
+
+                else:
+                    checked_steps = [2, 4, 5, 7]
 
             else:
-                for step in checked_steps:
+                mode = "Coast"
+                for step in [2, 4, 5, 7]:
                     new_x = x + digit2delta[step][0]
                     new_y = y + digit2delta[step][1]
 
-                    if areaSquares[new_y][new_x][0] != "S":
-                        checked_steps.remove(step)
-
-
-
+                    print(inside_field(new_x, new_y))
+                    if inside_field(new_x, new_y) and areaSquares[new_y][new_x][0] == "S":
+                        checked_steps.append(step)
+            print(checked_steps)
 
         elif areaSquares[y][x][0] == "h":
             checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
 
-        elif areaSquares[y][x][0] == "d":
+        elif areaSquares[y][x][0] == "p" and areaSquares[y][x][1]:
+            allowed_steps = flight()
+
+        elif "a" in areaSquares[y][x][0]:
+            checked_steps = areaSquares[y][x][1]
+
+        for step in checked_steps:
+            new_x = x + digit2delta[step][0]
+            new_y = y + digit2delta[step][1]
+            if inside_field(new_x, new_y):
+                if areaOpen[new_y][new_x][0] == 1:
+                    if mode == "Field" and \
+                            areaSquares[new_y][new_x][0] != "c" and \
+                            (areaSquares[new_y][new_x][0] != "S" or
+                             [new_x, new_y] == boats[pawns[pawn_select].boat_index].current):
+                        allowed_steps.add((new_x, new_y))
+                    if mode == "Coast" or mode == "Boat":
+                        allowed_steps.add((new_x, new_y))
+
+                elif areaOpen[new_y][new_x][0] == 0:
+                    allowed_steps.add((new_x, new_y))
+
+        if areaSquares[y][x][0] == "d":
             quantity_open = 0
             for step in areaSquares[y][x][1]:
                 if areaOpen[step[1]][step[0]][0] == 1:
@@ -716,32 +753,6 @@ def check_steps(x: int, y: int) -> list:
             if quantity_open < 2:
                 return []
 
-        elif areaSquares[y][x][0] == "p" and areaSquares[y][x][1]:
-            allowed_steps = flight()
-        elif "a" in areaSquares[y][x][0]:
-            checked_steps = areaSquares[y][x][1]
-
-        for step in checked_steps:
-            new_x = x + digit2delta[step][0]
-            new_y = y + digit2delta[step][1]
-            if 0 <= new_x < len(areaSquares) and 0 <= new_y < len(areaSquares):
-
-                if areaOpen[new_y][new_x][0] == 1 and \
-                        areaSquares[new_y][new_x][0] != "c":
-                    if mode != "Coast" and \
-                            (areaSquares[new_y][new_x][0] != "S" or
-                             [new_x, new_y] == boats[pawns[pawn_select].boat_index].current):
-                        allowed_steps.add((new_x, new_y))
-
-                    elif mode == "Coast":
-                        if areaSquares[new_y][new_x][0] == "S" or \
-                                pawns[pawn_select].current == boats[pawns[pawn_select].boat_index].current:
-                            allowed_steps.add((new_x, new_y))
-
-                elif areaOpen[new_y][new_x][0] == 0:
-                    if mode != "Coast" or \
-                            pawns[pawn_select].current == boats[pawns[pawn_select].boat_index].current:
-                        allowed_steps.add((new_x, new_y))
 
     print_area(list(allowed_steps), "Строка", ps="Координаты, куда ходить")
     return list(allowed_steps)
@@ -864,37 +875,10 @@ def mouse_click_move(x: int, y: int, delay: float):
                 pawns[pawn_select].current = [x, y]
                 open_square(x, y)
 
-                print(f"boats       {boats[pawns[pawn_select].boat_index].current}")
-                print(f"pawns       {pawns[pawn_select].last}")
-                print(f"pawn_select {pawn_select}")
-                pawns[pawn_select].info()
-
                 if pawns[pawn_select].last == boats[pawns[pawn_select].boat_index].current:
                     boat = boats[pawns[pawn_select].boat_index]
 
-                    alpha_wall = False
-                    is_island = False
-
-                    if inside_field(x-1, y-1) and not alpha_wall:
-                        alpha_wall = areaSquares[y-1][x-1][0] == "S"
-
-                    if inside_field(x+1, y+1) and not alpha_wall:
-                        alpha_wall = areaSquares[y+1][x+1][0] == "S"
-
-                    if inside_field(x+1, y-1) and not alpha_wall:
-                        alpha_wall = areaSquares[y-1][x+1][0] == "S"
-
-                    if inside_field(x-1, y+1) and not alpha_wall:
-                        alpha_wall = areaSquares[y+1][x-1][0] == "S"
-
-                    if inside_field(x, y):
-                        is_island = areaSquares[y][x][0] != "S"
-
-                    print(f"is_island   {is_island}")
-                    print(f"alpha_wall  {alpha_wall}")
-                    print(f"            {not (alpha_wall or is_island)}")
-
-                    if not (alpha_wall or is_island):
+                    if inside_field(x, y) and areaSquares[y][x][0] == "S":
                         for pawn in pawns:
                             if pawn.current == boat.current and \
                                     pawn.color == boat.color:
