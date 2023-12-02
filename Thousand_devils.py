@@ -341,34 +341,6 @@ def fill_area(area: list, value):
                 area[x][y][0] = value
 
 
-def print_area(area: list, mode: str, ps=""):
-    if mode == "Поле":
-        print("\033[34m{}\033[0m".format(f"\n▦ Просмотр поля: {ps}"))
-        print("\033[34m{}\033[0m".format("     0  1  2  3  4  5  6  7  8  9 10 11 12"))
-        for y in range(0, len(area)):
-            line = "  " + str(y) \
-                   + " " * (3 - len(str(y)))
-            for x in range(0, len(area[y])):
-                line = line \
-                       + str(area[y][x][0]) \
-                       + " " * (3 - len(str(area[y][x][0])))
-            print("\033[34m{}\033[0m".format(f"{line}"))
-
-    elif mode == "Массив":
-        print("\033[34m{}\033[0m".format(f"\n▥ Просмотр массива: {ps}"))
-        for y in range(0, len(area)):
-            print("\033[34m{}\033[0m".format(f"  {area[y]}"))
-
-    elif mode == "Список":
-        print("\033[34m{}\033[0m".format(f"\n▤ Просмотр списка: {ps}"))
-        for y in range(0, len(area)):
-            for x in range(0, len(area[y])):
-                print("\033[34m{}\033[0m".format(f"  {area[y][x]}"))
-
-    elif mode == "Строка":
-        print("\033[34m{}\033[0m".format(f"▧ Просмотр строки: {ps}\n  {area}"))
-
-
 def mix_area(area: list):
     clear_area(area)
     set_corners()
@@ -426,6 +398,34 @@ def mix_area(area: list):
         area[den_coord_xy[1]][den_coord_xy[0]] = ["d", tuple(den_coords_xy)]
 
 
+def print_area(area: list, mode: str, ps=""):
+    if mode == "Поле":
+        print("\033[34m{}\033[0m".format(f"\n▦ Просмотр поля: {ps}"))
+        print("\033[34m{}\033[0m".format("     0  1  2  3  4  5  6  7  8  9 10 11 12"))
+        for y in range(0, len(area)):
+            line = "  " + str(y) \
+                   + " " * (3 - len(str(y)))
+            for x in range(0, len(area[y])):
+                line = line \
+                       + str(area[y][x][0]) \
+                       + " " * (3 - len(str(area[y][x][0])))
+            print("\033[34m{}\033[0m".format(f"{line}"))
+
+    elif mode == "Массив":
+        print("\033[34m{}\033[0m".format(f"\n▥ Просмотр массива: {ps}"))
+        for y in range(0, len(area)):
+            print("\033[34m{}\033[0m".format(f"  {area[y]}"))
+
+    elif mode == "Список":
+        print("\033[34m{}\033[0m".format(f"\n▤ Просмотр списка: {ps}"))
+        for y in range(0, len(area)):
+            for x in range(0, len(area[y])):
+                print("\033[34m{}\033[0m".format(f"  {area[y][x]}"))
+
+    elif mode == "Строка":
+        print("\033[34m{}\033[0m".format(f"▧ Просмотр строки: {ps}\n  {area}"))
+
+
 def print_area_window(text: str, coord_xy: tuple):
     line = RobotoRegular.render(text, True, text_color, bg_color)
     window.blit(line, coord_xy)
@@ -441,34 +441,6 @@ def close_square(x: int, y: int):
     if inside_field(x, y):
         areaOpen[y][x][0] = 0
     show_area(areaSquares, areaOpen)
-
-
-def reborn(pawn_reborn: Pawn):
-    global way_pawn, pawn_select, game_mode
-    quantity_pawns = 0
-    for pawn in pawns:
-        if pawn.color == pawn_reborn.color:
-            quantity_pawns += 1
-
-    if quantity_pawns < 3:
-        game_mode = "select"
-        way_pawn = []
-        pawn_select = -1
-
-        pawns.append(Pawn(pawn_reborn.color,
-                          pawn_reborn.last,
-                          pawn_reborn.current,
-                          pawn_reborn.boat_index))
-
-        print("\033[32m{}\033[0m".format(f"☮ Возрождена пешка: "
-                                         f"{pawn_reborn.current[0]}, "
-                                         f"{pawn_reborn.current[1]} "
-                                         f"{pawn_reborn.color}"))
-
-        print("\033[32m{}\033[0m".format(f"Пешек {quantity_pawns + 1} {'♟' * (quantity_pawns + 1)}"))
-
-    else:
-        print("\033[32m{}\033[0m".format(f"Пешек уже 3 ♟♟♟"))
 
 
 def earthquake():
@@ -568,7 +540,7 @@ def change_scope(delta: int):
         place_x -= delta * 7
         place_y -= delta * 7
     show_area(areaSquares, areaOpen)
-    print("\033[30m{}\033[0m".format(f"  Масштаб:   {scope}"))
+    print("\033[3m{}\033[0m".format(f"  Масштаб:   {scope}"))
 
 
 def change_place(delta: tuple):
@@ -576,7 +548,7 @@ def change_place(delta: tuple):
     place_x += delta[0]
     place_y += delta[1]
     show_area(areaSquares, areaOpen)
-    print("\033[30m{}\033[0m".format(f"  Положение: {place_x}, {place_y}"))
+    print("\033[3m{}\033[0m".format(f"  Положение: {place_x}, {place_y}"))
 
 
 def mark_stroke_squares(coords_xy: list, color: tuple):
@@ -596,8 +568,37 @@ def mark_fill_squares(coords_xy: list, color: tuple):
                      coord_xy[1] * scope + place_y))
 
 
+def reborn_pawn(pawn_reborn: Pawn):
+    global way_pawn, pawn_select, game_mode
+    quantity_pawns = 0
+    for pawn in pawns:
+        if pawn.color == pawn_reborn.color:
+            quantity_pawns += 1
+
+    if quantity_pawns < 3:
+        game_mode = "select"
+        way_pawn = []
+        pawn_select = -1
+
+        pawns.append(Pawn(pawn_reborn.color,
+                          pawn_reborn.last,
+                          pawn_reborn.current,
+                          pawn_reborn.boat_index,
+                          pawn_reborn.skip))
+
+        print("\033[32m{}\033[0m".format(f"☮ Возрождена пешка: "
+                                         f"{pawn_reborn.current[0]}, "
+                                         f"{pawn_reborn.current[1]} "
+                                         f"{pawn_reborn.color}"))
+
+        print("\033[32m{}\033[0m".format(f"Пешек {quantity_pawns + 1} {'♟' * (quantity_pawns + 1)}"))
+
+    else:
+        print("\033[32m{}\033[0m".format(f"Пешек уже 3 ♟♟♟"))
+
+
 def kill_pawn():
-    print("\033[31m{}\033[0m".format(f"☠ Убита пешка:      "
+    print("\033[31m{}\033[0m".format(f"☠ Убита пешка:        "
                                      f"{pawns[pawn_select].current[0]}, "
                                      f"{pawns[pawn_select].current[1]} "
                                      f"{pawns[pawn_select].color}"))
@@ -841,7 +842,12 @@ def check_steps(x: int, y: int) -> list:
 
 def mouse_click_move(x: int, y: int, delay: float):
     global game_mode, way_pawn, pawn_select
-    if inside_field(x, y) and way_pawn and pawn_select != -1:
+
+    if inside_field(x, y) and \
+            way_pawn and \
+            pawn_select != -1 and \
+            pawns[pawn_select].skip == 0:
+
         for step in way_pawn:
             if x == step[0] and y == step[1]:
                 pawns[pawn_select].last = [pawns[pawn_select].current[0], pawns[pawn_select].current[1]]
@@ -868,6 +874,7 @@ def mouse_click_move(x: int, y: int, delay: float):
                                                  f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
                                                  f"{' ' * (50 - len(str(areaSquares[y][x])))}"
                                                  f"Δt {delay}"))
+                break
 
 
 def check_second_steps(x: int, y: int) -> list:
@@ -875,108 +882,107 @@ def check_second_steps(x: int, y: int) -> list:
 
     rebirth = None
 
-    if inside_field(x, y) and pawn_select != -1:
-        print("\033[33m{}\033[0m".format(f"  Проверка клетки:     "
-                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                         f"{' ' * (50 - len(str(areaSquares[y][x])))}"))
-        steps = []
-        if loop_search(pawns[pawn_select].current[0], pawns[pawn_select].current[1]):
-            kill_pawn()
-            pawn_select = -1
-            game_mode = "select"
-            return []
-
-        if "a" in areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0]:
-            for digit in areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1]:
-                steps.append((pawns[pawn_select].current[0] + digit2delta[digit][0],
-                              pawns[pawn_select].current[1] + digit2delta[digit][1]))
-            return steps
-
-        if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "q" and \
-                areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1]:
-            earthquake()
-            areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][1] = False
-
-        if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "w":
-            kill_pawn()
-
-        if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "b":
-            kick_pawn(pawn_select)
-
-        if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "p":
-            areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][1] = False
-
-        if areaSquares[pawns[pawn_select].current[1]][pawns[pawn_select].current[0]][0] == "l":
-            illuminate(-1, -1)
-            return []
-
-        if areaSquares[y][x][0] == "2":
-            if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "h":
-                for digit in [9, 10, 11, 12, 13, 14, 15, 16]:
-                    steps.append((x + digit2delta[digit][0], y + digit2delta[digit][1]))
-                return steps
-            else:
-                delta_x = pawns[pawn_select].current[0] - pawns[pawn_select].last[0]
-                delta_y = pawns[pawn_select].current[1] - pawns[pawn_select].last[1]
-                pawns[pawn_select].last[0] = pawns[pawn_select].current[0]
-                pawns[pawn_select].last[1] = pawns[pawn_select].current[1]
-                pawns[pawn_select].current[0] += delta_x
-                pawns[pawn_select].current[1] += delta_y
-                open_square(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
-                return check_second_steps(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
-
-        if areaSquares[y][x][0] == "d":
-            quantity_open = []
-            for step in areaSquares[y][x][1]:
-                if areaOpen[step[1]][step[0]][0] == 1:
-                    quantity_open.append(step)
-
-            if len(quantity_open) == 2 and \
-                    quantity_open != areaSquares[y][x][1]:
-                for step in quantity_open:
-                    if step[0] != x and step[1] != y:
-                        for pawn in pawns:
-                            if pawn.current[0] == step[0] and \
-                                    pawn.current[1] == step[1]:
-                                if pawn.color != pawns[pawn_select].color:
-                                    kick_pawn(pawn_select)
-                                pawn.last[0] = pawn.current[0]
-                                pawn.last[1] = pawn.current[1]
-                                pawn.current[0] = x
-                                pawn.current[1] = y
-                                break
-                        break
-
-            for step in quantity_open:
-                areaSquares[step[1]][step[0]][1] = quantity_open
-
-        if areaSquares[y][x][0] == "g":
-            pawns[pawn_select].current = gunshot(x, y)
-
-        if areaSquares[y][x][0] == "c":
-            pawns[pawn_select].current = [pawns[pawn_select].last[0], pawns[pawn_select].last[1]]
-            return check_second_steps(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
-
-        quantity_pawns = 0
-        for pawn in pawns:
-            if pawn.current == [x, y] and \
-                    pawn != pawns[pawn_select] and \
-                    areaSquares[y][x][0] != "j":
-                quantity_pawns += 1
-                if quantity_pawns == 1:
-                    kick_pawn(pawns.index(pawn))
-                else:
-                    kick_pawn(pawn_select)
-                    break
-
-        for boat in boats:
-            if pawns[pawn_select].current == boat.current and boat.color != pawns[pawn_select].color:
-                kill_pawn()
-                break
-
+    print("\033[33m{}\033[0m".format(f"  Проверка клетки:     "
+                                     f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
+                                     f"{' ' * (50 - len(str(areaSquares[y][x])))}"))
+    steps = []
+    if loop_search(x, y):
+        kill_pawn()
         pawn_select = -1
         game_mode = "select"
         return []
+
+    if "a" in areaSquares[y][x][0]:
+        for digit in areaSquares[y][x][1]:
+            steps.append((x + digit2delta[digit][0],
+                          y + digit2delta[digit][1]))
+        return steps
+
+    if areaSquares[y][x][0] == "q" and \
+            areaSquares[y][x][1]:
+        earthquake()
+        areaSquares[y][x][1] = False
+
+    if areaSquares[y][x][0] == "w":
+        kill_pawn()
+
+    if areaSquares[y][x][0] == "b":
+        kick_pawn(pawn_select)
+
+    if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "p":
+        areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][1] = False
+
+    if areaSquares[y][x][0] == "l":
+        illuminate(-1, -1)
+        return []
+
+    if areaSquares[y][x][0] == "2":
+        if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "h":
+            for digit in [9, 10, 11, 12, 13, 14, 15, 16]:
+                steps.append((x + digit2delta[digit][0], y + digit2delta[digit][1]))
+            return steps
+        else:
+            delta_x = pawns[pawn_select].current[0] - pawns[pawn_select].last[0]
+            delta_y = pawns[pawn_select].current[1] - pawns[pawn_select].last[1]
+            pawns[pawn_select].last[0] = pawns[pawn_select].current[0]
+            pawns[pawn_select].last[1] = pawns[pawn_select].current[1]
+            pawns[pawn_select].current[0] += delta_x
+            pawns[pawn_select].current[1] += delta_y
+            open_square(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
+            return check_second_steps(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
+
+    if areaSquares[y][x][0] == "d":
+        quantity_open = []
+        for step in areaSquares[y][x][1]:
+            if areaOpen[step[1]][step[0]][0] == 1:
+                quantity_open.append(step)
+
+        if len(quantity_open) == 2 and \
+                quantity_open != areaSquares[y][x][1]:
+            for step in quantity_open:
+                if step[0] != x and step[1] != y:
+                    for pawn in pawns:
+                        if pawn.current[0] == step[0] and \
+                                pawn.current[1] == step[1]:
+                            if pawn.color != pawns[pawn_select].color:
+                                kick_pawn(pawn_select)
+                            pawn.last[0] = pawn.current[0]
+                            pawn.last[1] = pawn.current[1]
+                            pawn.current[0] = x
+                            pawn.current[1] = y
+                            break
+                    break
+
+        for step in quantity_open:
+            areaSquares[step[1]][step[0]][1] = quantity_open
+
+    if areaSquares[y][x][0] == "g":
+        pawns[pawn_select].current = gunshot(x, y)
+
+    if areaSquares[y][x][0] == "c":
+        pawns[pawn_select].current = [pawns[pawn_select].last[0], pawns[pawn_select].last[1]]
+        return check_second_steps(pawns[pawn_select].current[0], pawns[pawn_select].current[1])
+
+    quantity_pawns = 0
+    for pawn in pawns:
+        if pawn.current == [x, y] and \
+                pawn != pawns[pawn_select] and \
+                areaSquares[y][x][0] != "j":
+            quantity_pawns += 1
+            if quantity_pawns == 1:
+                kick_pawn(pawns.index(pawn))
+            else:
+                kick_pawn(pawn_select)
+                break
+
+    for boat in boats:
+        if pawns[pawn_select].current == boat.current and boat.color != pawns[pawn_select].color:
+            kill_pawn()
+            break
+
+    pawn_select = -1
+    game_mode = "select"
+    return []
 
 
 def mouse_click(coord_xy: tuple, color: str, delay: float):
@@ -1540,7 +1546,7 @@ while running:
 
             elif event.key == pygame.K_r:
                 if rebirth is not None:
-                    reborn(rebirth)
+                    reborn_pawn(rebirth)
                     rebirth = None
 
             elif event.key == pygame.K_0:
