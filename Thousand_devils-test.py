@@ -83,15 +83,15 @@ def file2area(name_file: str):
         elif piece == "S":
             empty_row = False
             waste_row = False
-            area_x.append(["S"])
+            area_x.append("S")
         elif piece == "O":
             empty_row = False
             waste_row = False
-            area_x.append([0])
+            area_x.append(0)
             quantity_square_area += 1
         elif piece == "n":
             waste_row = False
-            area_x.append(["n"])
+            area_x.append("n")
 
     for y in area:
         if len(y) != len(area[0]):
@@ -113,8 +113,8 @@ def file2area(name_file: str):
     for y in range(len(flip_area)):
         waste_col = True
         for x in range(len(flip_area[y])):
-            if flip_area[y][x][0] == 0 or \
-                    flip_area[y][x][0] == "S":
+            if flip_area[y][x] == 0 or \
+                    flip_area[y][x] == "S":
                 waste_col = False
                 break
         if waste_col:
@@ -269,6 +269,9 @@ def file2area(name_file: str):
                                              f"Блок $s$, Клетка: {key}"))
             return False
 
+
+
+
     quantity_square_value = 0
 
     for value in squares.values():
@@ -285,7 +288,7 @@ def file2area(name_file: str):
     for y in range(len(area)):
         line = ''
         for x in range(len(area[y])):
-            line = line + str(area[y][x][0]) + ' '
+            line = line + str(area[y][x]) + ' '
         print(f"  {line}")
     print(f"  Количество кораблей:\n  {quantity_boats}")
     print(f"  Количество пешек:\n  {quantity_pawns}")
@@ -293,7 +296,8 @@ def file2area(name_file: str):
     print(f"  Цвета кораблей:\n  {pawn2color}")
     print(f"  Координаты кораблей:\n  {boat_start_coord_xy}")
 
-    print("\033[32m{}\033[0m".format(f"  Карточки:\n  {squares}"))
+    print(f"  Карточки:\n  {squares}")
+    print("\033[32m{}\033[0m".format(f"  Цикл игры:\n  {cycle}"))
 
     return {"area": area,
             "quantity_boats": quantity_boats,
@@ -307,29 +311,29 @@ def file2area(name_file: str):
 file2area("AreaN1.txt")
 
 
-pawn2color = {
-    "W": pawn_white,
-    "B": pawn_black,
-    "Y": pawn_yellow,
-    "R": pawn_red
-}
-boat_start_coord_xy = {"R": (0, 6),
-                       "W": (6, 0),
-                       "B": (12, 6),
-                       "Y": (6, 12)}
-
-
-squares = {"e1": 5, "e2": 4, "e3": 5, "e4": 4,
-           "a1": 3, "a2": 3, "a3": 3, "a4": 3, "a5": 3, "a6": 3, "a7": 3,
-           "h": 2,
-           "t5": 1, "t4": 2, "t3": 4, "t2": 5,
-           "2": 6, "tc": 3, "c": 4, "w": 1,
-           "f": 2, "r": 1,
-           "m5": 1, "m4": 2, "m3": 3, "m2": 5, "m1": 5, "mc": 1,
-           "p": 1, "tk": 1,
-           "b": 2, "g": 2, "l": 1,
-           "F": 1, "B": 1, "M": 1,
-           "v3": 1, "v2": 2, "v1": 3,
-           "d": 4, "tv": 4,
-           "q": 1, "j": 3, "m": 2
-           }
+# pawn2color = {
+#     "W": pawn_white,
+#     "B": pawn_black,
+#     "Y": pawn_yellow,
+#     "R": pawn_red
+# }
+# boat_start_coord_xy = {"R": (0, 6),
+#                        "W": (6, 0),
+#                        "B": (12, 6),
+#                        "Y": (6, 12)}
+#
+#
+# squares = {"e1": 5, "e2": 4, "e3": 5, "e4": 4,
+#            "a1": 3, "a2": 3, "a3": 3, "a4": 3, "a5": 3, "a6": 3, "a7": 3,
+#            "h": 2,
+#            "t5": 1, "t4": 2, "t3": 4, "t2": 5,
+#            "2": 6, "tc": 3, "c": 4, "w": 1,
+#            "f": 2, "r": 1,
+#            "m5": 1, "m4": 2, "m3": 3, "m2": 5, "m1": 5, "mc": 1,
+#            "p": 1, "tk": 1,
+#            "b": 2, "g": 2, "l": 1,
+#            "F": 1, "B": 1, "M": 1,
+#            "v3": 1, "v2": 2, "v1": 3,
+#            "d": 4, "tv": 4,
+#            "q": 1, "j": 3, "m": 2
+#            }

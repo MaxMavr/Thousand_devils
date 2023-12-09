@@ -3,7 +3,6 @@
 import pygame
 import time
 from random import choice
-from typing import Any
 
 window_height = 800
 window_width = window_height * 16 / 9
@@ -25,11 +24,6 @@ mark_select_color = (0, 255, 0, 255 / 1.5)
 mark_frame_color = (0, 128, 0)
 
 mark_block_color = (255, 0, 0)
-
-pawn_yellow = (255, 215, 0)
-pawn_black = (30, 30, 30)
-pawn_white = (245, 245, 245)
-pawn_red = (170, 0, 0)
 
 pawn_select_color = (50, 205, 50)
 
@@ -150,37 +144,29 @@ squares_img_name = {"e1": empty1, "e2": empty2, "e3": empty3, "e4": empty4,
 
 
 class Area:
-    def __init__(self, name_file):
-        self.opened, self.squares, self.moneys = [], [], []
-
-        if not file2area(name_file):
-            exit()
-
-        setup_dict = file2area(name_file)
-
-        area = setup_dict["area"]
-        quantity_boats = setup_dict["quantity_boats"]
-        quantity_pawns = setup_dict["quantity_pawns"]
-        start_boat = setup_dict["start_boat"]
-        pawn2color = setup_dict["pawn2color"]
-        boat_start_coord_xy = setup_dict["boat_start_coord_xy"]
-        squares = setup_dict["squares"]
-
-        for y in range(0, length_y):
-            x_opened, x_squares, x_moneys = [], [], []
-            for x in range(0, length_x):
-                x_opened.append(False)
-                x_squares.append([])
+    def __init__(self, area, quantity_squares):
+        self.quantity_squares = quantity_squares
+        self.opened, self.moneys, self.squares = [], [], []
+        self.len_y = len(area)
+        self.len_x = len(area[0])
+        for y in range(self.len_y):
+            x_opened, x_moneys, x_squares = [], [], []
+            for x in range(self.len_x):
+                if area[y][x] == "S" or area[y][x] == "n":
+                    x_opened.append(True)
+                    x_squares.append([area[y][x]])
+                else:
+                    x_opened.append(False)
+                    x_squares.append([0])
                 x_moneys.append(0)
-            self.opened.append(x_opened)
             self.squares.append(x_squares)
+            self.opened.append(x_opened)
             self.moneys.append(x_moneys)
 
     def inside_area(self, x: int, y: int) -> bool:
-        # null = "n"
         return 0 <= y < len(self.squares) and \
                0 <= x < len(self.squares[y]) and \
-               self.get_square(x, y)[0] != "n"
+               self.get_square(x, y)[0] != "n"  # null = "n"
 
     def get_open(self, x: int, y: int) -> bool:
         return self.opened[y][x]
@@ -201,22 +187,32 @@ class Area:
         self.moneys[y][x] = value
 
     def clear_area(self):
-        for y in range(0, len(self.squares)):
-            for x in range(0, len(self.squares[y])):
-                if self.squares[y][x][0] != "S":
+        for y in range(self.len_y):
+            for x in range(self.len_x):
+                if self.squares[y][x][0] != "S" and self.squares[y][x][0] != "n":
                     self.set_square(x, y, [0])
+                    self.set_open(x, y, False)
+                    self.set_money(x, y, 0)
 
     def fill_area(self, value: list):
         for y in range(0, len(self.squares)):
             for x in range(0, len(self.squares[y])):
-                if self.squares[y][x][0] != "S":
+                if self.squares[y][x][0] != "S" and self.squares[y][x][0] != "n":
                     self.set_square(x, y, value)
+
+    def open_area(self):
+        for y in range(0, len(self.squares)):
+            for x in range(0, len(self.squares[y])):
+                if self.squares[y][x][0] != "S" and self.squares[y][x][0] != "n":
+                    self.set_open(x, y, True)
+
+    def get_len_area(self) -> tuple:
+        return self.len_x, self.len_y
 
     def mix_area(self):
         self.clear_area()
-        test_set_corners()
 
-        temp_squares = squares.copy()
+        temp_squares = self.quantity_squares.copy()
         den_coords_xy = []
 
         for y in range(0, len(self.squares)):
@@ -308,84 +304,6 @@ class Area:
                     allowed_steps.add((x, y))
         return allowed_steps
 
-    def loop_search(start_x: int, start_y: int) -> bool:
-        def check_arrow(coord_xy: tuple):
-            nonlocal used_steps
-
-            x = coord_xy[0]
-            y = coord_xy[1]
-
-            # print(f"↗ Проверка стрелки:  "
-            #       f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x][1]}")
-
-            for digit in areaSquares[y][x][1]:
-                new_x = x + digit2delta[digit][0]
-                new_y = y + digit2delta[digit][1]
-                if 0 <= new_x < len(areaSquares) and \
-                        0 <= new_y < len(areaSquares) and \
-                        (new_x, new_y) not in used_steps:
-                    if areaOpen[new_y][new_x][0] == 1:
-                        if "a" in areaSquares[new_y][new_x][0]:
-                            used_steps.add((new_x, new_y))
-                            check_arrow((new_x, new_y))
-                        else:
-                            check_step((new_x, new_y), (x, y))
-                    else:
-                        used_steps.add((new_x, new_y))
-
-        def check_step(coord_xy: tuple, last_coord_xy: tuple):
-            nonlocal used_steps, checked_steps
-
-            x = coord_xy[0]
-            y = coord_xy[1]
-            old_x = last_coord_xy[0]
-            old_y = last_coord_xy[1]
-
-            if 0 <= coord_xy[0] < len(areaSquares) and \
-                    0 <= coord_xy[1] < len(areaSquares):
-                if areaOpen[coord_xy[1]][coord_xy[0]][0] == 1:
-                    if areaSquares[y][x][0] == "2":
-                        check_step((x + (x - old_x), y + (y - old_y)), (x, y))
-                    elif "a" in areaSquares[y][x][0] and (x, y) not in used_steps:
-                        used_steps.add((x, y))
-                        check_arrow((x, y))
-                    elif areaSquares[y][x][0] != "c" and (x, y) not in used_steps:
-                        used_steps.add((x, y))
-                elif areaOpen[y][x][0] == 0 and (x, y) not in used_steps:
-                    used_steps.add((x, y))
-
-            # print(f"☐ Проверка шага:     "
-            #       f"{x}, {y}"
-            #       f"{' ' * (4 - (x // 10 + y // 10))}{(x, y) in used_steps}")
-
-        checked_digits = [1, 2, 3, 4, 5, 6, 7, 8]
-        checked_steps = []
-        used_steps = set()
-        extra_quantity = 0
-        if 0 <= start_x < len(areaSquares) and \
-                0 <= start_y < len(areaSquares):
-
-            if "a" in areaSquares[start_y][start_x][0]:
-                checked_digits = areaSquares[start_y][start_x][1]
-
-            for digit in checked_digits:  # Получаем из направлений координаты
-                checked_steps.append((start_x + digit2delta[digit][0],
-                                      start_y + digit2delta[digit][1]))
-
-            for step in checked_steps:  # Проверяем координаты
-                check_step(step, (start_x, start_y))
-
-        for step in used_steps:
-            if ("a" in areaSquares[step[1]][step[0]][0] or
-                areaSquares[step[1]][step[0]][0] == "2") and \
-                    areaOpen[step[1]][step[0]][0] == 1:
-                extra_quantity += 1
-        used_steps = list(used_steps)
-        # print_area(used_steps, "Строка", ps="Координаты, куда можно сходить")
-        # mark_fill_squares(list(used_steps), mark_select_color)
-        # show_area(areaSquares, areaOpen)
-        return len(used_steps) - extra_quantity == 0
-
 
 class Boat:
     def __init__(self, curr: list, alco: int):
@@ -424,7 +342,7 @@ class TheGameCycle:
 class Players:
     def __init__(self, colors: dict, quantity_pawns: int):
         self.quantity_pawns = quantity_pawns
-        self.selected_pawn = {'color': "", 'pawn': -1}
+        self.selected_color = {'color': "", 'pawn': -1}
         self.players = {}
         for color in colors.keys():
             player = {'boat': Boat(colors[color], 0)}
@@ -437,74 +355,130 @@ class Players:
     def select(self, x: int, y: int, color: str) -> bool:
         for pawn in self.players[color]['pawns']:
             if x == pawn.curr[0] and y == pawn.curr[1]:
-                self.selected_pawn['color'] = color
-                self.selected_pawn['pawn'] = self.players[color]['pawns'].index(pawn)
+                self.selected_color['color'] = color
+                self.selected_color['pawn'] = self.players[color]['pawns'].index(pawn)
                 return True
         return False
 
+    def is_selected(self) -> bool:
+        return self.selected_color['color'] != "" and self.selected_color['pawn'] != -1
+
     def cancel_select(self):
-        self.selected_pawn['color'] = ""
-        self.selected_pawn['pawn'] = -1
+        self.selected_color['color'] = ""
+        self.selected_color['pawn'] = -1
+
+    def set_pawn_curr(self, value: list):
+        self.players[self.selected_color['color']]['pawns'][self.selected_color['pawn']].curr = value
+
+    def set_pawn_last(self, value: list):
+        self.players[self.selected_color['color']]['pawns'][self.selected_color['pawn']].last = value
 
     def get_pawn(self, path2pawn: dict) -> Pawn:
         return self.players[path2pawn['color']]['pawns'][path2pawn['pawn']]
+
+    def get_select_pawn(self) -> Pawn:
+        return self.get_pawn(self.get_select())
 
     def get_boat(self, path2pawn: dict) -> Boat:
         return self.players[path2pawn['color']]['boat']
 
     def get_select(self) -> dict:
-        return self.selected_pawn
+        return self.selected_color
 
     def kill_pawn(self):
+        print(self.get_pawn(self.selected_color).curr)
         print("\033[31m{}\033[0m".format(f"☠ Убита пешка:        "
-                                         f"{', '.join(self.get_pawn(self.selected_pawn).curr)}"
-                                         f"{self.selected_pawn['color']}"))
+                                         f"{', '.join(map(str, self.get_pawn(self.selected_color).curr))}"
+                                         f"{self.selected_color['color']}"))
 
-        self.players[self.selected_pawn['color']]['pawns'].pop(self.selected_pawn['pawn'])
+        self.players[self.selected_color['color']]['pawns'].pop(self.selected_color['pawn'])
 
     def kick_pawn(self, kicked_pawn: dict):
         print("\033[35m{}\033[0m".format(f"⎋ Пешка на корабле:  "
-                                         f"{', '.join(self.get_pawn(kicked_pawn).curr)}"
+                                         f"{', '.join(map(str, self.get_pawn(kicked_pawn).curr))}"
                                          f"{kicked_pawn['color']}"))
 
         self.get_pawn(kicked_pawn).curr = [self.get_boat(kicked_pawn).curr[0],
                                            self.get_boat(kicked_pawn).curr[1]]
         self.get_pawn(kicked_pawn).skip = 0
 
+    def check_other_pawns(self, x: int, y: int) -> int:
+        quantity = 0
+        for player in self.players.keys():
+            if player != self.selected_color['color']:
+                for pawn in self.players[player]['pawns']:
+                    if pawn.curr == [x, y]:
+                        quantity += 1
+        return quantity
+
+    def take_other_pawn(self, x: int, y: int) -> dict:
+        for player in self.players.keys():
+            if player != self.selected_color['color']:
+                for pawn in self.players[player]['pawns']:
+                    if pawn.curr == [x, y]:
+                        return {'color': player,
+                                'pawn': self.players[player]['pawns'].index(pawn)}
+
+    def check_other_boats(self, x: int, y: int) -> bool:
+        for player in self.players.keys():
+            if player != self.selected_color['color']:
+                if self.players[player]["boat"].curr == [x, y]:
+                    return True
+        return False
+
+    def boat_step(self, x: int, y: int):
+        boat = self.players[self.selected_color['color']]['boat']
+        for pawn in self.players[self.selected_color['color']]['pawns']:
+            if pawn.curr == boat.curr:
+                pawn.last[0] = pawn.curr[0]
+                pawn.last[1] = pawn.curr[1]
+                pawn.curr[0] = x
+                pawn.curr[1] = y
+        boat.curr[0] = x
+        boat.curr[1] = y
+
+    def rescuing_pawn(self, x: int, y: int):
+        for pawn in self.players[self.selected_color['color']]['pawns']:
+            if pawn.curr == [x, y] and \
+                    pawn is not self.get_pawn(self.selected_color):
+                pawn.skip = 0
+                self.get_pawn(self.selected_color).skip = 0
+                break
+
     def drunk(self, area: Area):
         global game_mode, way_pawn
-        if self.selected_pawn != {'color': "", 'pawn': -1}:
-            if self.get_pawn(self.selected_pawn).skip != 0 and \
-                    self.get_boat(self.selected_pawn).alco > 0:
-                self.get_pawn(self.selected_pawn).skip = 0
-                self.get_boat(self.selected_pawn).alco -= 1
+        if self.selected_color != {'color': "", 'pawn': -1}:
+            if self.get_pawn(self.selected_color).skip != 0 and \
+                    self.get_boat(self.selected_color).alco > 0:
+                self.get_pawn(self.selected_color).skip = 0
+                self.get_boat(self.selected_color).alco -= 1
 
                 print(f"☺ Пешка нажралась:     "
-                      f"{', '.join(self.get_pawn(self.selected_pawn).curr)}"
-                      f"{' ' * (4 - (self.get_pawn(self.selected_pawn).curr[0] // 10 + self.get_pawn(self.selected_pawn).curr[1] // 10))}"
-                      f"{area.get_square(self.get_pawn(self.selected_pawn).curr[0], self.get_pawn(self.selected_pawn).curr[1])}")
+                      f"{', '.join(map(str, self.get_pawn(self.selected_color).curr))}"
+                      f"{' ' * (4 - (self.get_pawn(self.selected_color).curr[0] // 10 + self.get_pawn(self.selected_color).curr[1] // 10))}"
+                      f"{area.get_square(self.get_pawn(self.selected_color).curr[0], self.get_pawn(self.selected_color).curr[1])}")
 
                 print(f"𝕽 Запасы рома:         "
-                      f"{self.selected_pawn['color']} {self.get_boat(self.selected_pawn).alco}")
+                      f"{self.selected_color['color']} {self.get_boat(self.selected_color).alco}")
 
     def reborn_pawn(self, area: Area):
         global way_pawn, game_mode
 
-        if area.get_square(self.get_pawn(self.selected_pawn).curr[0],
-                           self.get_pawn(self.selected_pawn).curr[1])[0] == "r":
+        if area.get_square(self.get_pawn(self.selected_color).curr[0],
+                           self.get_pawn(self.selected_color).curr[1])[0] == "r":
 
-            if len(self.players[self.selected_pawn['color']]['pawns']) < self.quantity_pawns:
-                self.players[self.selected_pawn['color']]['pawns'].append(
-                    Pawn(self.get_pawn(self.selected_pawn).last,
-                         self.get_pawn(self.selected_pawn).curr,
-                         self.get_pawn(self.selected_pawn).skip))
+            if len(self.players[self.selected_color['color']]['pawns']) < self.quantity_pawns:
+                self.players[self.selected_color['color']]['pawns'].append(
+                    Pawn(self.get_pawn(self.selected_color).last,
+                         self.get_pawn(self.selected_color).curr,
+                         self.get_pawn(self.selected_color).skip))
 
                 print("\033[32m{}\033[0m".format(f"☮ Возрождена пешка: "
-                                                 f"{', '.join(self.get_pawn(self.selected_pawn).curr)}"
-                                                 f"{self.selected_pawn['color']}"))
+                                                 f"{', '.join(map(str, self.get_pawn(self.selected_color).curr))}"
+                                                 f"{self.selected_color['color']}"))
 
-                print("\033[32m{}\033[0m".format(f"  Пешек {len(self.players[self.selected_pawn['color']]['pawns'])}"
-                                                 f" {'♟' * len(self.players[self.selected_pawn['color']]['pawns'])}"))
+                print("\033[32m{}\033[0m".format(f"  Пешек {len(self.players[self.selected_color['color']]['pawns'])}"
+                                                 f" {'♟' * len(self.players[self.selected_color['color']]['pawns'])}"))
                 self.cancel_select()
                 game_mode = "select"
                 way_pawn = []
@@ -522,33 +496,35 @@ class Players:
         if area.get_square(x, y)[1][0] == 2:
             while area.get_square(new_x, new_y)[0] != "S":
                 new_y -= 1
-            self.get_pawn(self.selected_pawn).curr = [x, new_y]
+            self.get_pawn(self.selected_color).curr = [x, new_y]
         elif area.get_square(x, y)[1][0] == 4:
             while area.get_square(new_x, new_y)[0] != "S":
                 new_x -= 1
-            self.get_pawn(self.selected_pawn).curr = [new_x, y]
+            self.get_pawn(self.selected_color).curr = [new_x, y]
         elif area.get_square(x, y)[1][0] == 5:
             while area.get_square(new_x, new_y)[0] != "S":
                 new_x += 1
-            self.get_pawn(self.selected_pawn).curr = [new_x, y]
+            self.get_pawn(self.selected_color).curr = [new_x, y]
         elif area.get_square(x, y)[1][0] == 7:
             while area.get_square(new_x, new_y)[0] != "S":
                 new_y += 1
-            self.get_pawn(self.selected_pawn).curr = [x, new_y]
+            self.get_pawn(self.selected_color).curr = [x, new_y]
 
     def info(self) -> str:
         result_line = ""
         for player in self.players.keys():
             line = ""
-            for pawn in self.players[player][1]:
+            for pawn in self.players[player]["pawns"]:
                 line += f"{pawn.info()}\n         "
-            result_line += f'{player} Лодка: {self.players[player][0].info()}\n' \
+            result_line += f'{player} Лодка: {self.players[player]["boat"].info()}\n' \
                            f'  Пешки: {line}\n'
         return result_line
 
 
-def file2area(name_file: str):
-    print(f'⎙ Создание поля из файла "{name_file[:-4]}"')
+def file2area(name_file: str, hide=False):
+    if not hide:
+        print(f'⎙ Создание поля из файла "{name_file[:-4]}"')
+
     try:
         file = open(name_file, 'r')
     except:
@@ -556,7 +532,6 @@ def file2area(name_file: str):
         return False
 
     uncleaned = file.read()
-
     n_uncleaned = ""
     a_uncleaned = ""
     f_uncleaned = ""
@@ -632,15 +607,15 @@ def file2area(name_file: str):
         elif piece == "S":
             empty_row = False
             waste_row = False
-            area_x.append(["S"])
+            area_x.append("S")
         elif piece == "O":
             empty_row = False
             waste_row = False
-            area_x.append([0])
+            area_x.append(0)
             quantity_square_area += 1
         elif piece == "n":
             waste_row = False
-            area_x.append(["n"])
+            area_x.append("n")
 
     for y in area:
         if len(y) != len(area[0]):
@@ -662,8 +637,8 @@ def file2area(name_file: str):
     for y in range(len(flip_area)):
         waste_col = True
         for x in range(len(flip_area[y])):
-            if flip_area[y][x][0] == 0 or \
-                    flip_area[y][x][0] == "S":
+            if flip_area[y][x] == 0 or \
+                    flip_area[y][x] == "S":
                 waste_col = False
                 break
         if waste_col:
@@ -715,24 +690,24 @@ def file2area(name_file: str):
         elif key != "":
             facilities[key] += f_cleaned[in_piece]
 
-    quantity_boats = 0
-    quantity_pawns = 0
+    boats = 0
+    pawns = 0
     start_boat = ""
 
     try:
-        quantity_boats = int(facilities["b"])
-        quantity_pawns = int(facilities["p"])
+        boats = int(facilities["b"])
+        pawns = int(facilities["p"])
         start_boat = facilities["s"]
     except:
         print("\033[31m{}\033[0m".format(f"Количество лодок или пешек не число\n"
                                          f"Блок $f$"))
         return False
 
-    pawn2color = {}
-    boat_start_coord_xy = {}
+    pawn_color = {}
+    start_coord_xy = {}
     color = 0
 
-    for i in range(quantity_boats):
+    for i in range(boats):
         pos_start = 0
         pos_finish = 0
         line = ""
@@ -758,35 +733,39 @@ def file2area(name_file: str):
                     elif il == len(line) - 1:
                         temp.append(line[s:il + 1])
                 if separator == 1:
-                    boat_start_coord_xy[color] = temp
+                    start_coord_xy[color] = temp
                 if separator == 2:
-                    pawn2color[color] = temp
+                    pawn_color[color] = temp
 
-    if len(pawn2color) != len(boat_start_coord_xy):
+    if len(pawn_color) != len(start_coord_xy):
         print("\033[31m{}\033[0m".format(f"Количество цветов и координат старта различны\n"
-                                         f"Цвета: {pawn2color}\n"
-                                         f"Координаты начала: {boat_start_coord_xy}"))
+                                         f"Цвета: {pawn_color}\n"
+                                         f"Координаты начала: {start_coord_xy}"))
         return False
 
-    for key in pawn2color.keys():
-        for i in range(len(pawn2color[key])):
-            try:
-                pawn2color[key][i] = int(pawn2color[key][i])
-            except:
-                print("\033[31m{}\033[0m".format(f"В вектор цвета не числа\n"
-                                                 f"Цвет {key}, Вектор: {pawn2color[key]}"))
-                return False
-        pawn2color[key] = tuple(pawn2color[key])
+    cycle = []
 
-    for key in boat_start_coord_xy.keys():
-        for i in range(len(boat_start_coord_xy[key])):
+    for i in pawn_color.keys():
+        cycle.append(i)
+
+    for key in pawn_color.keys():
+        for i in range(len(pawn_color[key])):
             try:
-                boat_start_coord_xy[key][i] = int(boat_start_coord_xy[key][i])
+                pawn_color[key][i] = int(pawn_color[key][i])
             except:
                 print("\033[31m{}\033[0m".format(f"В вектор цвета не числа\n"
-                                                 f"Цвет {key}, Вектор: {boat_start_coord_xy[key]}"))
+                                                 f"Цвет {key}, Вектор: {pawn_color[key]}"))
                 return False
-        boat_start_coord_xy[key] = tuple(boat_start_coord_xy[key])
+        pawn_color[key] = tuple(pawn_color[key])
+
+    for key in start_coord_xy.keys():
+        for i in range(len(start_coord_xy[key])):
+            try:
+                start_coord_xy[key][i] = int(start_coord_xy[key][i])
+            except:
+                print("\033[31m{}\033[0m".format(f"В вектор цвета не числа\n"
+                                                 f"Цвет {key}, Вектор: {start_coord_xy[key]}"))
+                return False
 
     key = ""
     squares = {}
@@ -829,28 +808,52 @@ def file2area(name_file: str):
                                          f"Блок $s$, Количество: {quantity_square_value}"))
         return False
 
-    print("\033[32m".format(f"  Название карты:\n  {name_area}"))
-    print(f"  Каркас поля:")
-    for y in range(len(area)):
-        line = ''
-        for x in range(len(area[y])):
-            line = line + str(area[y][x][0]) + ' '
-        print(f"  {line}")
-    print(f"  Количество кораблей:\n  {quantity_boats}")
-    print(f"  Количество пешек:\n  {quantity_pawns}")
-    print(f"  Старт-корабль:\n  {start_boat}")
-    print(f"  Цвета кораблей:\n  {pawn2color}")
-    print(f"  Координаты кораблей:\n  {boat_start_coord_xy}")
-
-    print("\033[32m{}\033[0m".format(f"  Карточки:\n  {squares}"))
+    if not hide:
+        print("\033[32m".format(f"  Название карты:\n  {name_area}"))
+        print(f"  Каркас поля:")
+        for y in range(len(area)):
+            line = ''
+            for x in range(len(area[y])):
+                line = line + str(area[y][x]) + ' '
+            print(f"  {line}")
+        print(f"  Количество кораблей:\n  {boats}")
+        print(f"  Количество пешек:\n  {pawns}")
+        print(f"  Старт-корабль:\n  {start_boat}")
+        print(f"  Цвета кораблей:\n  {pawn_color}")
+        print(f"  Координаты кораблей:\n  {start_coord_xy}")
+        print(f"  Карточки:\n  {squares}")
+        print("\033[32m{}\033[0m".format(f"  Цикл игры:\n  {cycle}"))
 
     return {"area": area,
-            "quantity_boats": quantity_boats,
-            "quantity_pawns": quantity_pawns,
+            "pawns": pawns,
             "start_boat": start_boat,
-            "pawn2color": pawn2color,
-            "boat_start_coord_xy": boat_start_coord_xy,
+            "cycle": cycle,
+            "pawn2color": pawn_color,
+            "start_coord_xy": start_coord_xy,
             "squares": squares}
+
+
+def illuminate(x: int, y: int):
+    global game_mode
+
+    if game_area.get_square(*game_players.get_select_pawn().curr)[1] >= 1:
+        if game_mode == "lighthouse":
+            if game_area.inside_area(x, y) and \
+                    not game_area.get_open(x, y):
+                print(f"☄ Маяк открыл:         "
+                      f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}"
+                      f"{game_area.get_square(x, y)}")
+                game_area.set_open(x, y, True)
+
+                game_area.get_square(*game_players.get_select_pawn().curr)[1] -= 1
+                if game_area.get_square(*game_players.get_select_pawn().curr)[1] == 0:
+                    game_mode = "select"
+                    game_players.cancel_select()
+        else:
+            game_mode = "lighthouse"
+    else:
+        game_mode = "select"
+        game_players.cancel_select()
 
 
 def print_area(area: list, mode: str, ps=""):
@@ -881,30 +884,9 @@ def print_area(area: list, mode: str, ps=""):
         print("\033[34m{}\033[0m".format(f"▧ Просмотр строки: {ps}\n  {area}"))
 
 
-def print_window(text: str, coord_xy: tuple):
+def print_in_window(text: str, coord_xy: tuple):
     line = RobotoRegular.render(text, True, text_color, bg_color)
     window.blit(line, coord_xy)
-
-
-def illuminate(x: int, y: int):
-    global game_mode, pawn_select
-    if areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]][1] >= 1:
-        if game_mode == "lighthouse":
-            if inside_field(x, y) and \
-                    areaOpen[y][x][0] == 0:
-                print(f"☄ Маяк открыл:         "
-                      f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}"
-                      f"{areaSquares[y][x]}")
-                open_square(x, y)
-                areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]][1] -= 1
-                if areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]][1] == 0:
-                    game_mode = "select"
-                    pawn_select = -1
-        else:
-            game_mode = "lighthouse"
-    else:
-        game_mode = "select"
-        pawn_select = -1
 
 
 def change_scope(delta: int):
@@ -942,54 +924,53 @@ def mark_fill_squares(coords_xy: list, color: tuple):
 
 
 def mouse_click_cancel_select(coord_xy: tuple, delay: float):
-    global way_pawn, game_mode, pawn_select
+    global way_pawn, game_mode
     x = (coord_xy[0] - place_x) // scope
     y = (coord_xy[1] - place_y) // scope
-    if inside_field(x, y) and \
-            x == pawns[pawn_select].curr[0] and \
-            y == pawns[pawn_select].curr[1] and \
-            "a" not in areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]][0] and \
-            areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]][0] != "2" and \
-            (areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]][0] != "l" or
-             areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]][1] == 0):
-        pawn_select = -1
+
+    if game_area.inside_area(x, y) and \
+            game_players.get_select_pawn().curr == [x, y] and \
+            "a" not in game_area.get_square(*game_players.get_select_pawn().curr)[0] and \
+            game_area.get_square(*game_players.get_select_pawn().curr)[0] != "2" and \
+            (game_area.get_square(*game_players.get_select_pawn().curr)[0] != "l" or
+             game_area.get_square(*game_players.get_select_pawn().curr)[1] == 0):
+        game_players.cancel_select()
         game_mode = "select"
         way_pawn = []
         print("\033[35m{}\033[0m".format(f"  Отмена выбора пешки: "
-                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                         f"{' ' * (50 - len(str(areaSquares[y][x])))}"
+                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{game_area.get_square(x, y)}"
+                                         f"{' ' * (50 - len(str(game_area.get_square(x, y))))}"
                                          f"Δt {delay}"))
-        show_area(areaSquares, areaOpen)
 
 
 def mouse_click_select(x: int, y: int, delay: float) -> list:
-    global game_mode, pawn_select
+    global game_mode
 
-    if inside_field(x, y) and \
-            pawn_select != -1:
+    if game_area.inside_area(x, y) and \
+            game_players.is_selected():
 
         game_mode = "move"
         print("\033[35m{}\033[0m".format(f"\n  Выбрана пешка:       "
-                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                         f"{' ' * (50 - len(str(areaSquares[y][x])))}"
+                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{game_area.get_square(x, y)}"
+                                         f"{' ' * (50 - len(str(game_area.get_square(x, y))))}"
                                          f"Δt {delay}"))
         if loop_search(x, y):
-            kill_pawn()
+            game_players.kill_pawn()
         else:
             return check_steps(x, y)
     return []
 
 
 def check_steps(x: int, y: int) -> list:
-    global pawn_select, game_mode, rebirth
+    global game_mode
     checked_steps = [1, 2, 3, 4, 5, 6, 7, 8]
     allowed_steps = set()
     mode = "Field"
-    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-        if areaSquares[y][x][0] == "S":
+    if game_area.inside_area(x, y):
+        if game_area.get_square(x, y)[0] == "S":
             checked_steps = []
 
-            if [x, y] == boats[pawns[pawn_select].boat_index].curr:
+            if [x, y] == game_players.get_boat(game_players.get_select()).curr:
                 mode = "Boat"
                 condition = "None"
 
@@ -997,32 +978,32 @@ def check_steps(x: int, y: int) -> list:
                     new_x = x + digit2delta[step][0]
                     new_y = y + digit2delta[step][1]
 
-                    if inside_field(new_x, new_y):
-                        if areaSquares[new_y][new_x][0] == "S":
+                    if game_area.inside_area(new_x, new_y):
+                        if game_area.get_square(new_x, new_y)[0] == "S":
                             if step == 2 or step == 7:
                                 condition = "vertical"
                             elif step == 4 or step == 5:
                                 condition = "horizontal"
 
-                if inside_field(x - 1, y - 1) and areaSquares[y - 1][x - 1][0] == "S":
+                if game_area.inside_area(x - 1, y - 1) and game_area.get_square(x - 1, y - 1)[0] == "S":
                     if condition == "vertical":
                         checked_steps = [4, 7]
                     elif condition == "horizontal":
                         checked_steps = [2, 5]
 
-                elif inside_field(x + 1, y + 1) and areaSquares[y + 1][x + 1][0] == "S":
+                elif game_area.inside_area(x + 1, y + 1) and game_area.get_square(x + 1, y + 1)[0] == "S":
                     if condition == "vertical":
                         checked_steps = [2, 5]
                     elif condition == "horizontal":
                         checked_steps = [4, 7]
 
-                elif inside_field(x + 1, y - 1) and areaSquares[y - 1][x + 1][0] == "S":
+                elif game_area.inside_area(x + 1, y - 1) and game_area.get_square(x + 1, y - 1)[0] == "S":
                     if condition == "vertical":
                         checked_steps = [5, 7]
                     elif condition == "horizontal":
                         checked_steps = [2, 4]
 
-                elif inside_field(x - 1, y + 1) and areaSquares[y + 1][x - 1][0] == "S":
+                elif game_area.inside_area(x - 1, y + 1) and game_area.get_square(x - 1, y + 1)[0] == "S":
                     if condition == "vertical":
                         checked_steps = [2, 4]
                     elif condition == "horizontal":
@@ -1037,59 +1018,53 @@ def check_steps(x: int, y: int) -> list:
                     new_x = x + digit2delta[step][0]
                     new_y = y + digit2delta[step][1]
 
-                    if inside_field(new_x, new_y) and areaSquares[new_y][new_x][0] == "S":
+                    if game_area.inside_area(new_x, new_y) and game_area.get_square(new_x, new_y)[0] == "S":
                         checked_steps.append(step)
 
-        elif areaSquares[y][x][0] == "r":
-            rebirth = pawns[pawn_select]
-
-        elif areaSquares[y][x][0] == "h":
+        elif game_area.get_square(x, y)[0] == "h":
             checked_steps = [9, 10, 11, 12, 13, 14, 15, 16]
 
-        elif areaSquares[y][x][0] == "p" and areaSquares[y][x][1]:
-            allowed_steps = flight()
+        elif game_area.get_square(x, y)[0] == "p" and game_area.get_square(x, y)[1]:
+            allowed_steps = game_area.flight()
 
-        elif "t" in areaSquares[y][x][0]:
-            if areaSquares[y][x][0] != "tk" and \
-                    areaSquares[y][x][0] != "tc" and \
-                    areaSquares[y][x][0] != "tv":
-                if pawns[pawn_select].skip != 0:
+        elif "t" in game_area.get_square(x, y)[0]:
+            if game_area.get_square(x, y)[0] != "tk" and \
+                    game_area.get_square(x, y)[0] != "tc" and \
+                    game_area.get_square(x, y)[0] != "tv":
+
+                if game_players.get_select_pawn().skip != 0:
                     return [(x, y)]
-            if pawns[pawn_select].skip != 0 and \
-                    areaSquares[y][x][0] == "tc":
+            if game_players.get_select_pawn().skip != 0 and \
+                    game_area.get_square(x, y)[0] == "tc":
                 return []
 
-        elif "a" in areaSquares[y][x][0]:
-            checked_steps = areaSquares[y][x][1]
+        elif "a" in game_area.get_square(x, y)[0]:
+            checked_steps = game_area.get_square(x, y)[1]
 
         for step in checked_steps:
             new_x = x + digit2delta[step][0]
             new_y = y + digit2delta[step][1]
-            if inside_field(new_x, new_y):
-                if areaOpen[new_y][new_x][0] == 1:
+            if game_area.inside_area(new_x, new_y):
+                if game_area.get_open(new_x, new_y):
                     if mode == "Field" and \
-                            areaSquares[new_y][new_x][0] != "c" and \
-                            (areaSquares[new_y][new_x][0] != "S" or
-                             [new_x, new_y] == boats[pawns[pawn_select].boat_index].curr):
+                            game_area.get_square(new_x, new_y)[0] != "c" and \
+                            (game_area.get_square(new_x, new_y)[0] != "S" or
+                             [new_x, new_y] == game_players.get_boat(game_players.get_select()).curr):
                         allowed_steps.add((new_x, new_y))
                     if mode == "Coast" or mode == "Boat":
                         allowed_steps.add((new_x, new_y))
-
-                elif areaOpen[new_y][new_x][0] == 0:
+                else:
                     allowed_steps.add((new_x, new_y))
 
-                if areaSquares[new_y][new_x][0] == "f" or \
-                        areaSquares[new_y][new_x][0] == "r":
-                    for pawn in pawns:
-                        if pawn.curr == [new_x, new_y] and \
-                                pawn.color != pawns[pawn_select].color:
-                            allowed_steps.remove((new_x, new_y))
-                            break
+                if (game_area.get_square(new_x, new_y)[0] == "f" or
+                    game_area.get_square(new_x, new_y)[0] == "r") and \
+                        game_players.check_other_pawns(x, y) != 0:
+                    allowed_steps.remove((new_x, new_y))
 
-        if areaSquares[y][x][0] == "d":
+        if game_area.get_square(x, y)[0] == "d":
             quantity_open = []
-            for step in areaSquares[y][x][1]:
-                if areaOpen[step[1]][step[0]][0] == 1:
+            for step in game_area.get_square(x, y)[1]:
+                if game_area.get_open(step[0], step[1]):
                     quantity_open.append(step)
                     if step != (x, y):
                         allowed_steps.add(step)
@@ -1102,206 +1077,267 @@ def check_steps(x: int, y: int) -> list:
 
 
 def mouse_click_move(x: int, y: int, delay: float):
-    global game_mode, way_pawn, pawn_select
+    global game_mode, way_pawn
 
-    if inside_field(x, y) and \
+    if game_area.inside_area(x, y) and \
             way_pawn and \
-            pawn_select != -1:
+            game_players.is_selected():
 
         for step in way_pawn:
             if x == step[0] and y == step[1]:
-                pawns[pawn_select].last = [pawns[pawn_select].curr[0], pawns[pawn_select].curr[1]]
-                pawns[pawn_select].curr = [x, y]
-                open_square(x, y)
+                game_players.set_pawn_last(game_players.get_select_pawn().curr)
+                game_players.set_pawn_curr([x, y])
+                game_area.set_open(x, y, True)
 
-                if pawns[pawn_select].last == boats[pawns[pawn_select].boat_index].curr:
-                    boat = boats[pawns[pawn_select].boat_index]
-
-                    if inside_field(x, y) and areaSquares[y][x][0] == "S":
-                        for pawn in pawns:
-                            if pawn.curr == boat.curr and \
-                                    pawn.color == boat.color:
-                                pawn.last[0] = pawn.curr[0]
-                                pawn.last[1] = pawn.curr[1]
-                                pawn.curr[0] = x
-                                pawn.curr[1] = y
-                        boat.curr[0] = x
-                        boat.curr[1] = y
+                if game_players.get_select_pawn().last == \
+                        game_players.get_boat(game_players.get_select()).curr:
+                    if game_area.inside_area(x, y) and game_area.get_square(x, y)[0] == "S":
+                        game_players.boat_step(x, y)
 
                 way_pawn = check_second_steps(x, y)
 
                 print("\033[35m{}\033[0m".format(f"  Ход пешки:           "
-                                                 f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                                 f"{' ' * (50 - len(str(areaSquares[y][x])))}"
+                                                 f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{game_area.get_square(x, y)}"
+                                                 f"{' ' * (50 - len(str(game_area.get_square(x, y))))}"
                                                  f"Δt {delay}"))
                 break
 
 
 def check_second_steps(x: int, y: int) -> list:
-    global game_mode, pawn_select, rebirth
-
-    rebirth = None
+    global game_mode
 
     print("\033[33m{}\033[0m".format(f"  Проверка клетки:     "
-                                     f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x]}"
-                                     f"{' ' * (50 - len(str(areaSquares[y][x])))}"))
+                                     f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{game_area.get_square(x, y)}"
+                                     f"{' ' * (50 - len(str(game_area.get_square(x, y))))}"))
     steps = []
     if loop_search(x, y):
-        kill_pawn()
-        pawn_select = -1
+        game_players.kill_pawn()
+        game_players.cancel_select()
         game_mode = "select"
         return []
 
-    if "a" in areaSquares[y][x][0]:
-        for digit in areaSquares[y][x][1]:
+    if "a" in game_area.get_square(x, y)[0]:
+        for digit in game_area.get_square(x, y)[1]:
             steps.append((x + digit2delta[digit][0],
                           y + digit2delta[digit][1]))
         return steps
 
-    elif "t" in areaSquares[y][x][0]:
-        if areaSquares[y][x][0] != "tk" and \
-                areaSquares[y][x][0] != "tc" and \
-                areaSquares[y][x][0] != "tv":
+    elif "t" in game_area.get_square(x, y)[0]:
+        if game_area.get_square(x, y)[0] != "tk" and \
+                game_area.get_square(x, y)[0] != "tc" and \
+                game_area.get_square(x, y)[0] != "tv":
 
-            if pawns[pawn_select].skip != 0:
-                pawns[pawn_select].skip -= 1
+            if game_players.get_select_pawn().skip != 0:
+                game_players.get_select_pawn().skip -= 1
 
-            if pawns[pawn_select].last != [x, y]:
-                pawns[pawn_select].skip = int(areaSquares[y][x][0][1]) - 1  # Волшебная единица
+            if game_players.get_select_pawn().last != [x, y]:
+                game_players.get_select_pawn().skip = int(game_area.get_square(x, y)[0][1]) - 1
+                # Волшебная единица
 
-        elif areaSquares[y][x][0] == "tc":
-            pawns[pawn_select].skip = -1
-            for pawn in pawns:
-                if pawn.curr == [x, y] and \
-                        pawn is not pawns[pawn_select] and \
-                        pawn.color == pawns[pawn_select].color:
-                    pawn.skip = 0
-                    pawns[pawn_select].skip = 0
-                    break
+        elif game_area.get_square(x, y)[0] == "tc":
+            game_players.get_select_pawn().skip = -1
+            game_players.rescuing_pawn(x, y)
 
         print(f"◮ Пешка в ловушке:     "
-              f"{pawns[pawn_select].curr[0]}, {pawns[pawn_select].curr[1]}{' ' * (4 - (x // 10 + y // 10))}"
-              f"{areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]]}   "
-              f"Нужно пройти: ∞" if pawns[pawn_select].skip == -1
+              f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}"
+              f"{game_area.get_square(x, y)}   "
+              f"Нужно пройти: ∞" if game_players.get_select_pawn().skip == -1
               else f"◮ Пешка в ловушке:     "
-                   f"{pawns[pawn_select].curr[0]}, {pawns[pawn_select].curr[1]}{' ' * (4 - (x // 10 + y // 10))}"
-                   f"{areaSquares[pawns[pawn_select].curr[1]][pawns[pawn_select].curr[0]]}   "
-                   f"Нужно пройти: {pawns[pawn_select].skip}")
+                   f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}"
+                   f"{game_area.get_square(x, y)}   "
+                   f"Нужно пройти: {game_players.get_select_pawn().skip}")
 
-    elif areaSquares[y][x][0] == "q" and \
-            areaSquares[y][x][1]:
-        earthquake()
-        areaSquares[y][x][1] = False
+    elif game_area.get_square(x, y)[0] == "q" and \
+            game_area.get_square(x, y)[1]:
+        game_area.earthquake()
+        game_area.get_square(x, y)[1] = False
 
-    elif areaSquares[y][x][0] == "w":
-        kill_pawn()
+    elif game_area.get_square(x, y)[0] == "w":
+        game_players.kill_pawn()
 
-    elif areaSquares[y][x][0] == "b":
-        kick_pawn(pawn_select)
+    elif game_area.get_square(x, y)[0] == "b":
+        game_players.kick_pawn(game_players.get_select())
 
-    elif areaSquares[y][x][0][0] == "v" and \
-            areaSquares[y][x][1]:
-        boats[pawns[pawn_select].boat_index].alco += int(areaSquares[y][x][0][1])
-        areaSquares[y][x][1] = False
+    elif game_area.get_square(x, y)[0][0] == "v" and \
+            game_area.get_square(x, y)[1]:
+        game_players.get_boat(game_players.get_select()).alco += int(game_area.get_square(x, y)[0][1])
+        game_area.get_square(x, y)[1] = False
         print(f"𝕽 Запасы рома:        "
-              f"{boats[pawns[pawn_select].boat_index].alco} {pawns[pawn_select].color}")
+              f"{game_players.get_boat(game_players.get_select()).alco} {game_players.get_select()['color']}")
 
-    elif areaSquares[y][x][0] == "l":
+    elif game_area.get_square(x, y)[0] == "l":
         illuminate(-1, -1)
         return []
 
-    elif areaSquares[y][x][0] == "2":
-        if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "h":
+    elif game_area.get_square(x, y)[0] == "2":
+
+        if game_area.get_square(*game_players.get_select_pawn().last)[0] == "h":
             for digit in [9, 10, 11, 12, 13, 14, 15, 16]:
                 steps.append((x + digit2delta[digit][0], y + digit2delta[digit][1]))
             return steps
         else:
-            delta_x = pawns[pawn_select].curr[0] - pawns[pawn_select].last[0]
-            delta_y = pawns[pawn_select].curr[1] - pawns[pawn_select].last[1]
-            pawns[pawn_select].last[0] = pawns[pawn_select].curr[0]
-            pawns[pawn_select].last[1] = pawns[pawn_select].curr[1]
-            pawns[pawn_select].curr[0] += delta_x
-            pawns[pawn_select].curr[1] += delta_y
-            open_square(pawns[pawn_select].curr[0], pawns[pawn_select].curr[1])
-            return check_second_steps(pawns[pawn_select].curr[0], pawns[pawn_select].curr[1])
+            delta_x = game_players.get_select_pawn().curr[0] - \
+                game_players.get_select_pawn().last[0]
+            delta_y = game_players.get_select_pawn().curr[1] - \
+                game_players.get_select_pawn().last[1]
 
-    elif areaSquares[y][x][0] == "d":
-        quantity_open = []
-        for step in areaSquares[y][x][1]:
-            if areaOpen[step[1]][step[0]][0] == 1:
-                quantity_open.append(step)
+            game_players.set_pawn_last(game_players.get_select_pawn().curr)
+            game_players.set_pawn_curr([game_players.get_select_pawn().curr[0] + delta_x,
+                                        game_players.get_select_pawn().curr[1] + delta_y])
+            game_area.set_open(*game_players.get_select_pawn().curr, True)
+            return check_second_steps(*game_players.get_select_pawn().curr)
 
-        if len(quantity_open) == 2 and \
-                quantity_open != areaSquares[y][x][1]:
-            for step in quantity_open:
-                if step[0] != x and step[1] != y:
-                    for pawn in pawns:
-                        if pawn.curr[0] == step[0] and \
-                                pawn.curr[1] == step[1]:
-                            if pawn.color != pawns[pawn_select].color:
-                                kick_pawn(pawn_select)
-                            pawn.last[0] = pawn.curr[0]
-                            pawn.last[1] = pawn.curr[1]
-                            pawn.curr[0] = x
-                            pawn.curr[1] = y
-                            break
-                    break
+    elif game_area.get_square(x, y)[0] == "d":
+        den_open_coords_xy = []
+        for step in game_area.get_square(x, y)[1]:
+            if game_area.get_open(step[0], step[1]):
+                den_open_coords_xy.append(step)
 
-        for step in quantity_open:
-            areaSquares[step[1]][step[0]][1] = quantity_open
+        if len(den_open_coords_xy) == 2 and \
+                den_open_coords_xy != game_area.get_square(x, y)[1]:
+            for coord_xy in den_open_coords_xy:
+                if coord_xy != (x, y):
+                    game_players.kick_pawn(game_players.take_other_pawn(x, y))
+                    game_players.set_pawn_last(game_players.get_select_pawn().curr)
+                    game_players.set_pawn_curr([x, y])
 
-    elif areaSquares[y][x][0] == "g":
-        pawns[pawn_select].curr = gunshot(x, y)
+        for step in den_open_coords_xy:
+            game_area.set_square(step[0], step[1], [game_area.get_square(step[0], step[1])[0], den_open_coords_xy])
 
-    elif areaSquares[y][x][0] == "c":
-        pawns[pawn_select].curr = [pawns[pawn_select].last[0], pawns[pawn_select].last[1]]
-        return check_second_steps(pawns[pawn_select].curr[0], pawns[pawn_select].curr[1])
+    elif game_area.get_square(x, y)[0] == "g":
+        game_players.gunshot(x, y, game_area)
 
-    if areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][0] == "p":
-        areaSquares[pawns[pawn_select].last[1]][pawns[pawn_select].last[0]][1] = False
+    elif game_area.get_square(x, y)[0] == "c":
+        game_players.set_pawn_curr(game_players.get_select_pawn().last)
+        return check_second_steps(game_players.get_pawn(game_players.get_select()).curr[0],
+                                  game_players.get_pawn(game_players.get_select()).curr[1])
 
-    quantity_pawns = 0
-    for pawn in pawns:
-        if pawn.curr == [x, y] and \
-                pawn.color != pawns[pawn_select].color and \
-                pawn.skip == pawns[pawn_select].skip and \
-                pawn is not pawns[pawn_select] and \
-                areaSquares[y][x][0] != "j":
-            quantity_pawns += 1
-            if quantity_pawns == 1:
-                kick_pawn(pawns.index(pawn))
-            else:
-                kick_pawn(pawn_select)
-                break
+    if game_area.get_square(game_players.get_select_pawn().last[0],
+                            game_players.get_select_pawn().last[1])[0] == "p":
+        game_area.set_square(game_players.get_select_pawn().last[0],
+                             game_players.get_select_pawn().last[1],
+                             ["p", False])
+    if game_players.check_other_pawns(x, y) > 0 and \
+            game_area.get_square(x, y)[0] != "j":
+        if game_players.check_other_pawns(x, y) == 1:
+            game_players.kick_pawn(game_players.take_other_pawn(x, y))
+        else:
+            game_players.kick_pawn(game_players.get_select())
 
-    for boat in boats:
-        if pawns[pawn_select].curr == boat.curr and boat.color != pawns[pawn_select].color:
-            kill_pawn()
-            break
+    if game_players.check_other_boats(*game_players.get_select_pawn().curr):
+        game_players.kill_pawn()
 
-    pawn_select = -1
+    game_players.cancel_select()
     game_mode = "select"
     return []
 
 
 def mouse_click(coord_xy: tuple, color: str, delay: float):
-    global way_pawn, game_mode, pawn_select
+    global way_pawn, game_mode
     x = (coord_xy[0] - place_x) // scope
     y = (coord_xy[1] - place_y) // scope
     if game_mode == "lighthouse":
         illuminate(x, y)
     else:
         if game_mode == "select":
-            for pawn in pawns:
-                if pawn.color == color and \
-                        [x, y] == pawn.curr:
-                    pawn_select = pawns.index(pawn)
+            game_players.select(x, y, color)
             way_pawn = mouse_click_select(x, y, delay)
         elif game_mode == "move":
             mouse_click_move(x, y, delay)
-    show_area(areaSquares, areaOpen)
-    if 0 <= x < len(areaSquares) and 0 <= y < len(areaSquares):
-        print_area_window(f"{areaSquares[y][x]}\n{x}, {y}", coord_xy)
+    if game_area.inside_area(x, y):
+        print_in_window(f"{game_area.get_square(x, y)}\n{x}, {y}", coord_xy)
+
+
+if not file2area("AreaN1.txt", hide=True):
+    exit()
+setup_dict = file2area("AreaN1.txt")
+
+game_cycle = TheGameCycle(setup_dict["cycle"], setup_dict["start_boat"])
+game_players = Players(setup_dict["start_coord_xy"], setup_dict["pawns"])
+game_area = Area(setup_dict["area"], setup_dict["squares"])
+game_area.mix_area()
+
+# print(game_players.info())
+
+pawn2color = setup_dict["pawn2color"]
+
+
+def loop_search(start_x: int, start_y: int) -> bool:
+    def check_arrow(coord_xy: tuple):
+        nonlocal used_steps
+
+        x = coord_xy[0]
+        y = coord_xy[1]
+
+        # print(f"↗ Проверка стрелки:  "
+        #       f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x][1]}")
+
+        for digit in game_area.get_square(x, y)[1]:
+            new_x = x + digit2delta[digit][0]
+            new_y = y + digit2delta[digit][1]
+            if game_area.inside_area(new_x, new_y) and \
+                    (new_x, new_y) not in used_steps:
+                if game_area.get_open(new_x, new_y):
+                    if "a" in game_area.get_square(new_x, new_y)[0]:
+                        used_steps.add((new_x, new_y))
+                        check_arrow((new_x, new_y))
+                    else:
+                        check_step((new_x, new_y), (x, y))
+                else:
+                    used_steps.add((new_x, new_y))
+
+    def check_step(coord_xy: tuple, last_coord_xy: tuple):
+        nonlocal used_steps, checked_steps
+
+        x = coord_xy[0]
+        y = coord_xy[1]
+        old_x = last_coord_xy[0]
+        old_y = last_coord_xy[1]
+
+        if game_area.inside_area(coord_xy[0], coord_xy[1]):
+            if game_area.get_open(coord_xy[1], coord_xy[0]):
+                if game_area.get_square(x, y)[0] == "2":
+                    check_step((x + (x - old_x), y + (y - old_y)), (x, y))
+                elif "a" in game_area.get_square(x, y)[0] and (x, y) not in used_steps:
+                    used_steps.add((x, y))
+                    check_arrow((x, y))
+                elif game_area.get_square(x, y)[0] != "c" and \
+                        (x, y) not in used_steps and \
+                        (game_area.get_square(x, y)[0] != "f" or
+                         game_area.get_square(x, y)[0] != "r" or
+                         game_players.check_other_pawns(x, y) == 0):
+                    used_steps.add((x, y))
+            else:
+                if (x, y) not in used_steps:
+                    used_steps.add((x, y))
+
+        # print(f"☐ Проверка шага:     "
+        #       f"{x}, {y}"
+        #       f"{' ' * (4 - (x // 10 + y // 10))}{(x, y) in used_steps}")
+
+    checked_digits = [1, 2, 3, 4, 5, 6, 7, 8]
+    checked_steps = []
+    used_steps = set()
+    extra_quantity = 0
+
+    if game_area.inside_area(start_x, start_y):
+        if "a" in game_area.get_square(start_x, start_y)[0]:
+            checked_digits = game_area.get_square(start_x, start_y)[1]
+        for digit in checked_digits:  # Получаем из направлений координаты
+            checked_steps.append((start_x + digit2delta[digit][0],
+                                  start_y + digit2delta[digit][1]))
+        for step in checked_steps:  # Проверяем координаты
+            check_step(step, (start_x, start_y))
+    for step in used_steps:
+        if ("a" in game_area.get_square(step[0], step[1])[0] or
+            game_area.get_square(step[0], step[1])[0] == "2") and \
+                game_area.get_open(step[0], step[1]):
+            extra_quantity += 1
+    used_steps = list(used_steps)
+    # print_area(used_steps, "Строка", ps="Координаты, куда можно сходить")
+    # mark_fill_squares(list(used_steps), mark_select_color)
+    # show_area(areaSquares, areaOpen)
+    return len(used_steps) - extra_quantity == 0
 
 
 def update_window():
@@ -1310,23 +1346,36 @@ def update_window():
 
     square_temp = pygame.transform.scale(frame, (scope * 13, scope * 13))
     window.blit(square_temp, (place_x, place_y))
-    for y in range(0, len(area)):
-        for x in range(0, len(area[y])):
-            if opened[y][x][0] == 1 and area[y][x][0] != "S":
-                square_temp = pygame.transform.scale(squares_img_name[area[y][x][0]], (scope, scope))
-                if "a" in area[y][x][0] or "g" in area[y][x][0]:
+    for y in range(0, game_area.get_len_area()[1]):
+        for x in range(0, game_area.get_len_area()[0]):
+            if game_area.get_open(x, y) and game_area.get_square(x, y)[0] != "S":
+                square_temp = pygame.transform.scale(squares_img_name[game_area.get_square(x, y)[0]], (scope, scope))
+                if "a" in game_area.get_square(x, y)[0] or "g" in game_area.get_square(x, y)[0]:
                     square_temp = pygame.transform.rotate(square_temp,
-                                                          int(digit2degrees[area[y][x][1][0]]))
+                                                          int(digit2degrees[game_area.get_square(x, y)[1][0]]))
                 window.blit(square_temp, (x * scope + place_x, y * scope + place_y))
-            elif opened[y][x][0] == 0 and area[y][x][0] != "S":
-                square_temp = pygame.transform.scale(empty, (scope, scope))
-                window.blit(square_temp, (x * scope + place_x, y * scope + place_y))
+            else:
+                if game_area.get_square(x, y)[0] != "S":
+                    square_temp = pygame.transform.scale(empty, (scope, scope))
+                    window.blit(square_temp, (x * scope + place_x, y * scope + place_y))
 
     square_temp = pygame.transform.scale(boat_img, (scope, scope))
 
-    for boat in boats:
+    def draw_pawn(item: Pawn, pawn_x, pawn_y, radius, select: bool, color: str):
+        pygame.draw.circle(window, pawn2color[color],
+                           (item.curr[0] * scope + place_x + pawn_x,
+                            item.curr[1] * scope + place_y + pawn_y),
+                           radius)
+        if select:
+            pygame.draw.circle(window, pawn_select_color,
+                               (item.curr[0] * scope + place_x + pawn_x,
+                                item.curr[1] * scope + place_y + pawn_y),
+                               radius, 4)
+
+    for player in game_players.players.keys():
+        boat = game_players.players[player]["boat"]
         square = pygame.Surface((scope, scope), pygame.SRCALPHA)
-        square.fill(pawn2color[boat.color])
+        square.fill(pawn2color[player])
         square.set_alpha(40)
         window.blit(square_temp,
                     (boat.curr[0] * scope + place_x,
@@ -1342,539 +1391,501 @@ def update_window():
                     (boat.curr[0] * scope + place_x,
                      boat.curr[1] * scope + place_y))
 
-    def draw_pawn(item: Pawn, pawn_x, pawn_y, radius, select: bool):
-        pygame.draw.circle(window, pawn2color[item.color],
-                           (item.curr[0] * scope + place_x + pawn_x,
-                            item.curr[1] * scope + place_y + pawn_y),
-                           radius)
-        if select:
-            pygame.draw.circle(window, pawn_select_color,
-                               (item.curr[0] * scope + place_x + pawn_x,
-                                item.curr[1] * scope + place_y + pawn_y),
-                               radius, 4)
-
-    for pawn in pawns:
-        if pawn_select != -1:
-            mark = pawn == pawns[pawn_select]
-        else:
-            mark = False
-
-        if pawn.skip <= 0:
-            if areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t5":
-                draw_pawn(pawn, scope * 5 / 6, scope * 5 / 6, scope / 6, mark)
-
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t4":
-                draw_pawn(pawn, scope / 3, scope / 6, scope / 6, mark)
-
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t3":
-                draw_pawn(pawn, scope * 5 / 6, scope / 6, scope / 6, mark)
-
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t2":
-                draw_pawn(pawn, scope * 2 / 3, scope / 6, scope / 6, mark)
-
+        for pawn in game_players.players[player]["pawns"]:
+            print("12345678")
+            if game_players.is_selected():
+                mark = pawn == game_players.get_select_pawn()
             else:
-                draw_pawn(pawn, scope / 2, scope / 2, scope / 4, mark)
+                mark = False
 
-                if pawn.skip == -1:
-                    pygame.draw.line(window, mark_block_color,
-                                     (pawn.curr[0] * scope + place_x + scope / 4,
-                                      pawn.curr[1] * scope + place_y + scope / 4),
-                                     (pawn.curr[0] * scope + place_x + 3 * scope / 4,
-                                      pawn.curr[1] * scope + place_y + 3 * scope / 4), 4)
+            if pawn.skip <= 0:
+                if game_area.get_square(*pawn.curr)[0] == "t5":
+                    draw_pawn(pawn, scope * 5 / 6, scope * 5 / 6, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t4":
+                    draw_pawn(pawn, scope / 3, scope / 6, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t3":
+                    draw_pawn(pawn, scope * 5 / 6, scope / 6, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t2":
+                    draw_pawn(pawn, scope * 2 / 3, scope / 6, scope / 6, mark, player)
 
-                    pygame.draw.line(window, mark_block_color,
-                                     (pawn.curr[0] * scope + place_x + 3 * scope / 4,
-                                      pawn.curr[1] * scope + place_y + scope / 4),
-                                     (pawn.curr[0] * scope + place_x + scope / 4,
-                                      pawn.curr[1] * scope + place_y + 3 * scope / 4), 4)
+                else:
+                    draw_pawn(pawn, scope / 2, scope / 2, scope / 4, mark, player)
 
-        elif pawn.skip == 1:
-            if areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t5":
-                draw_pawn(pawn, scope / 3, scope * 5 / 6, scope / 6, mark)
+                    if pawn.skip == -1:
+                        pygame.draw.line(window, mark_block_color,
+                                         (pawn.curr[0] * scope + place_x + scope / 4,
+                                          pawn.curr[1] * scope + place_y + scope / 4),
+                                         (pawn.curr[0] * scope + place_x + 3 * scope / 4,
+                                          pawn.curr[1] * scope + place_y + 3 * scope / 4), 4)
 
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t4":
-                draw_pawn(pawn, scope * 2 / 3, scope / 3, scope / 6, mark)
+                        pygame.draw.line(window, mark_block_color,
+                                         (pawn.curr[0] * scope + place_x + 3 * scope / 4,
+                                          pawn.curr[1] * scope + place_y + scope / 4),
+                                         (pawn.curr[0] * scope + place_x + scope / 4,
+                                          pawn.curr[1] * scope + place_y + 3 * scope / 4), 4)
 
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t3":
-                draw_pawn(pawn, scope / 3, scope / 2, scope / 6, mark)
-
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t2":
-                draw_pawn(pawn, scope / 6, scope * 5 / 6, scope / 6, mark)
-
-        elif pawn.skip == 2:
-            if areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t5":
-                draw_pawn(pawn, scope / 6, scope / 2, scope / 6, mark)
-
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t4":
-                draw_pawn(pawn, scope / 6, scope * 2 / 3, scope / 6, mark)
-
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t3":
-                draw_pawn(pawn, scope * 5 / 6, scope * 5 / 6, scope / 6, mark)
-
-        elif pawn.skip == 3:
-
-            if areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t5":
-                draw_pawn(pawn, scope / 2, scope / 6, scope / 6, mark)
-
-            elif areaSquares[pawn.curr[1]][pawn.curr[0]][0] == "t4":
-                draw_pawn(pawn, scope * 5 / 6, scope * 5 / 6, scope / 6, mark)
-
-        elif pawn.skip == 4:
-            draw_pawn(pawn, scope * 5 / 6, scope / 6, scope / 6, mark)
-
-    mark_stroke_squares(way_pawn, pawn_select_color)
+            elif pawn.skip == 1:
+                if game_area.get_square(*pawn.curr)[0] == "t5":
+                    draw_pawn(pawn, scope / 3, scope * 5 / 6, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t4":
+                    draw_pawn(pawn, scope * 2 / 3, scope / 3, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t3":
+                    draw_pawn(pawn, scope / 3, scope / 2, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t2":
+                    draw_pawn(pawn, scope / 6, scope * 5 / 6, scope / 6, mark, player)
+            elif pawn.skip == 2:
+                if game_area.get_square(*pawn.curr)[0] == "t5":
+                    draw_pawn(pawn, scope / 6, scope / 2, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t4":
+                    draw_pawn(pawn, scope / 6, scope * 2 / 3, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t3":
+                    draw_pawn(pawn, scope * 5 / 6, scope * 5 / 6, scope / 6, mark, player)
+            elif pawn.skip == 3:
+                if game_area.get_square(*pawn.curr)[0] == "t5":
+                    draw_pawn(pawn, scope / 2, scope / 6, scope / 6, mark, player)
+                elif game_area.get_square(*pawn.curr)[0] == "t4":
+                    draw_pawn(pawn, scope * 5 / 6, scope * 5 / 6, scope / 6, mark, player)
+            elif pawn.skip == 4:
+                draw_pawn(pawn, scope * 5 / 6, scope / 6, scope / 6, mark, player)
+        mark_stroke_squares(way_pawn, pawn_select_color)
 
 
 #
 def set_1test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
-    areaSquares[3][6] = ["a2", [5]]
-    areaSquares[3][7] = ["a2", [4]]
-    areaSquares[6][6] = ["h"]
-    areaSquares[7][8] = ["2"]
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
+    game_area.set_square(3, 6, ["a2", [5]])
+    game_area.set_square(3, 7, ["a2", [4]])
+    game_area.set_square(6, 6, ["h"])
+    game_area.set_square(7, 8, ["2"])
 
-    areaSquares[7][2] = ["a2", [2]]
-    areaSquares[8][2] = ["a2", [2]]
-    areaSquares[9][2] = ["a2", [2]]
-    areaSquares[9][1] = ["f"]
-    areaSquares[9][3] = ["f"]
+    game_area.set_square(7, 2, ["a2", [2]])
+    game_area.set_square(8, 2, ["a2", [2]])
+    game_area.set_square(9, 2, ["a2", [2]])
+    game_area.set_square(9, 1, ["f"])
+    game_area.set_square(9, 3, ["f"])
 
-    areaSquares[8][7] = ["a7", [3, 4, 7]]
-    areaSquares[2][2] = ["p", True]
-    areaSquares[3][3] = ["f"]
-    areaSquares[5][4] = ["c"]
-    areaSquares[7][9] = ["r"]
-    areaSquares[4][1] = ["j"]
-    areaSquares[10][6] = ["g", [4]]
-    areaSquares[3][10] = ["q", True]
+    game_area.set_square(8, 7, ["a7", [3, 4, 7]])
+    game_area.set_square(2, 2, ["p", True])
+    game_area.set_square(3, 3, ["f"])
+    game_area.set_square(5, 4, ["c"])
+    game_area.set_square(7, 9, ["r"])
+    game_area.set_square(4, 1, ["j"])
+    game_area.set_square(10, 6, ["g", [4]])
+    game_area.set_square(3, 10, ["q", True])
 
     # areaSquares[5][8] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
     # areaSquares[10][8] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
     # areaSquares[7][2] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
     # areaSquares[2][6] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
 
-    areaSquares[10][9] = ["a1", [3]]
-    areaSquares[9][10] = ["c"]
+    game_area.set_square(10, 9, ["a1", [3]])
+    game_area.set_square(9, 10, ["c"])
 
-    areaSquares[11][2] = ["a2", [5]]
-    areaSquares[11][3] = ["2"]
-    areaSquares[11][4] = ["a2", [4]]
+    game_area.set_square(11, 2, ["a2", [5]])
+    game_area.set_square(11, 3, ["2"])
+    game_area.set_square(11, 4, ["a2", [4]])
 
     # areaSquares[11][4] = ["a3", [4, 5]]
     # areaSquares[11][6] = ["a3", [4, 5]]
-    areaSquares[6][9] = ["2"]
+    game_area.set_square(6, 9, ["2"])
     # areaSquares[3][4] = ["2"]
-    areaSquares[3][4] = ["a2", [4]]
-    areaSquares[2][10] = ["l", 3]
-    areaSquares[1][4] = ["2"]
+    game_area.set_square(3, 4, ["a2", [4]])
+    game_area.set_square(2, 10, ["l", 3])
+    game_area.set_square(1, 4, ["2"])
 
-    areaSquares[6][11] = ["a2", [4]]
+    game_area.set_square(6, 11, ["a2", [4]])
 
-    areaSquares[11][5] = ["tc"]
-    areaSquares[11][6] = ["t2"]
-    areaSquares[11][7] = ["t3"]
-    areaSquares[11][8] = ["t4"]
-    areaSquares[11][9] = ["t5"]
+    game_area.set_square(11, 5, ["tc"])
+    game_area.set_square(11, 6, ["t2"])
+    game_area.set_square(11, 7, ["t3"])
+    game_area.set_square(11, 8, ["t4"])
+    game_area.set_square(11, 9, ["t5"])
 
 
 def set_2test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
-    areaSquares[5][3] = ["2"]
-    areaSquares[6][3] = ["2"]
-    areaSquares[7][3] = ["2"]
-    areaSquares[8][3] = ["2"]
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
+    game_area.set_square(5, 3, ["2"])
+    game_area.set_square(6, 3, ["2"])
+    game_area.set_square(7, 3, ["2"])
+    game_area.set_square(8, 3, ["2"])
 
-    areaSquares[6][4] = ["2"]
-    areaSquares[7][4] = ["2"]
-    areaSquares[8][4] = ["2"]
+    game_area.set_square(6, 4, ["2"])
+    game_area.set_square(7, 4, ["2"])
+    game_area.set_square(8, 4, ["2"])
 
-    areaSquares[7][5] = ["2"]
-    areaSquares[8][5] = ["2"]
+    game_area.set_square(7, 5, ["2"])
+    game_area.set_square(8, 5, ["2"])
 
-    areaSquares[8][6] = ["2"]
+    game_area.set_square(8, 6, ["2"])
 
-    areaSquares[5][2] = ["a2", [5]]
-    areaSquares[6][2] = ["a2", [5]]
-    areaSquares[7][2] = ["a2", [5]]
-    areaSquares[8][2] = ["a2", [5]]
+    game_area.set_square(5, 2, ["a2", [5]])
+    game_area.set_square(6, 2, ["a2", [5]])
+    game_area.set_square(7, 2, ["a2", [5]])
+    game_area.set_square(8, 2, ["a2", [5]])
 
-    areaSquares[5][4] = ["a2", [4]]
-    areaSquares[6][5] = ["a2", [4]]
-    areaSquares[7][6] = ["a2", [4]]
-    areaSquares[8][7] = ["a2", [4]]
+    game_area.set_square(5, 4, ["a2", [4]])
+    game_area.set_square(6, 5, ["a2", [4]])
+    game_area.set_square(7, 6, ["a2", [4]])
+    game_area.set_square(8, 7, ["a2", [4]])
 
-    areaSquares[3][2] = ["a1", [3]]
-    areaSquares[2][3] = ["a1", [6]]
+    game_area.set_square(3, 2, ["a1", [3]])
+    game_area.set_square(2, 3, ["a1", [6]])
 
-    areaSquares[2][5] = ["a1", [8]]
-    areaSquares[3][6] = ["a1", [1]]
+    game_area.set_square(2, 5, ["a1", [8]])
+    game_area.set_square(3, 6, ["a1", [1]])
 
-    areaSquares[2][8] = ["a2", [5]]
-    areaSquares[2][9] = ["a2", [4]]
+    game_area.set_square(2, 8, ["a2", [5]])
+    game_area.set_square(2, 9, ["a2", [4]])
 
 
 def set_3test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
-    areaSquares[3][1] = ["a1", [3]]
-    areaSquares[4][1] = ["a1", [3]]
-    areaSquares[5][1] = ["a1", [3]]
-    areaSquares[6][1] = ["a1", [3]]
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
+    game_area.set_square(3, 1, ["a1", [3]])
+    game_area.set_square(4, 1, ["a1", [3]])
+    game_area.set_square(5, 1, ["a1", [3]])
+    game_area.set_square(6, 1, ["a1", [3]])
 
-    areaSquares[1][3] = ["a1", [6]]
-    areaSquares[1][4] = ["a1", [6]]
-    areaSquares[1][5] = ["a1", [6]]
-    areaSquares[1][6] = ["a1", [6]]
+    game_area.set_square(1, 3, ["a1", [6]])
+    game_area.set_square(1, 4, ["a1", [6]])
+    game_area.set_square(1, 5, ["a1", [6]])
+    game_area.set_square(1, 6, ["a1", [6]])
 
-    areaSquares[6][5] = ["a1", [8]]
-    areaSquares[6][6] = ["a1", [8]]
-    areaSquares[6][7] = ["a1", [8]]
-    areaSquares[6][8] = ["a1", [8]]
+    game_area.set_square(6, 5, ["a1", [8]])
+    game_area.set_square(6, 6, ["a1", [8]])
+    game_area.set_square(6, 7, ["a1", [8]])
+    game_area.set_square(6, 8, ["a1", [8]])
 
-    areaSquares[8][10] = ["a1", [1]]
-    areaSquares[9][10] = ["a1", [1]]
-    areaSquares[10][10] = ["a1", [1]]
-    areaSquares[11][10] = ["a1", [1]]
+    game_area.set_square(8, 10, ["a1", [1]])
+    game_area.set_square(9, 10, ["a1", [1]])
+    game_area.set_square(10, 10, ["a1", [1]])
+    game_area.set_square(11, 10, ["a1", [1]])
 
-    areaSquares[2][2] = ["2"]
-    areaSquares[3][2] = ["2"]
-    areaSquares[4][2] = ["2"]
-    areaSquares[5][2] = ["2"]
+    game_area.set_square(2, 2, ["2"])
+    game_area.set_square(3, 2, ["2"])
+    game_area.set_square(4, 2, ["2"])
+    game_area.set_square(5, 2, ["2"])
 
-    areaSquares[2][3] = ["2"]
-    areaSquares[3][3] = ["2"]
-    areaSquares[4][3] = ["2"]
+    game_area.set_square(2, 3, ["2"])
+    game_area.set_square(3, 3, ["2"])
+    game_area.set_square(4, 3, ["2"])
 
-    areaSquares[2][4] = ["2"]
-    areaSquares[3][4] = ["2"]
+    game_area.set_square(2, 4, ["2"])
+    game_area.set_square(3, 4, ["2"])
 
-    areaSquares[2][5] = ["2"]
+    game_area.set_square(2, 5, ["2"])
 
-    areaSquares[7][9] = ["2"]
-    areaSquares[8][9] = ["2"]
-    areaSquares[9][9] = ["2"]
-    areaSquares[10][9] = ["2"]
+    game_area.set_square(7, 9, ["2"])
+    game_area.set_square(8, 9, ["2"])
+    game_area.set_square(9, 9, ["2"])
+    game_area.set_square(10, 9, ["2"])
 
-    areaSquares[7][8] = ["2"]
-    areaSquares[8][8] = ["2"]
-    areaSquares[9][8] = ["2"]
+    game_area.set_square(7, 8, ["2"])
+    game_area.set_square(8, 8, ["2"])
+    game_area.set_square(9, 8, ["2"])
 
-    areaSquares[7][7] = ["2"]
-    areaSquares[8][7] = ["2"]
+    game_area.set_square(7, 7, ["2"])
+    game_area.set_square(8, 7, ["2"])
 
-    areaSquares[7][6] = ["2"]
+    game_area.set_square(7, 6, ["2"])
 
 
 def set_4test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
 
-    areaSquares[2][3] = ["a2", [5]]
-    areaSquares[2][4] = ["a2", [4]]
-    areaSquares[2][5] = ["a2", [4]]
-    areaSquares[2][7] = ["a2", [5]]
-    areaSquares[2][8] = ["a2", [5]]
-    areaSquares[2][9] = ["a2", [4]]
+    game_area.set_square(2, 3, ["a2", [5]])
+    game_area.set_square(2, 4, ["a2", [4]])
+    game_area.set_square(2, 5, ["a2", [4]])
+    game_area.set_square(2, 7, ["a2", [5]])
+    game_area.set_square(2, 8, ["a2", [5]])
+    game_area.set_square(2, 9, ["a2", [4]])
 
-    areaSquares[3][2] = ["a2", [5]]
-    areaSquares[3][3] = ["a2", [4]]
-    areaSquares[3][4] = ["a2", [4]]
-    areaSquares[3][5] = ["a2", [4]]
-    areaSquares[3][7] = ["a2", [5]]
-    areaSquares[3][8] = ["a2", [5]]
-    areaSquares[3][9] = ["a2", [5]]
-    areaSquares[3][10] = ["a2", [4]]
+    game_area.set_square(3, 2, ["a2", [5]])
+    game_area.set_square(3, 3, ["a2", [4]])
+    game_area.set_square(3, 4, ["a2", [4]])
+    game_area.set_square(3, 5, ["a2", [4]])
+    game_area.set_square(3, 7, ["a2", [5]])
+    game_area.set_square(3, 8, ["a2", [5]])
+    game_area.set_square(3, 9, ["a2", [5]])
+    game_area.set_square(3, 10, ["a2", [4]])
 
-    areaSquares[4][1] = ["a2", [5]]
-    areaSquares[4][2] = ["a2", [4]]
-    areaSquares[4][3] = ["a2", [4]]
-    areaSquares[4][4] = ["a2", [4]]
-    areaSquares[4][5] = ["a2", [4]]
-    areaSquares[4][7] = ["a2", [5]]
-    areaSquares[4][8] = ["a2", [5]]
-    areaSquares[4][9] = ["a2", [5]]
-    areaSquares[4][10] = ["a2", [5]]
-    areaSquares[4][11] = ["a2", [4]]
+    game_area.set_square(4, 1, ["a2", [5]])
+    game_area.set_square(4, 2, ["a2", [4]])
+    game_area.set_square(4, 3, ["a2", [4]])
+    game_area.set_square(4, 4, ["a2", [4]])
+    game_area.set_square(4, 5, ["a2", [4]])
+    game_area.set_square(4, 7, ["a2", [5]])
+    game_area.set_square(4, 8, ["a2", [5]])
+    game_area.set_square(4, 9, ["a2", [5]])
+    game_area.set_square(4, 10, ["a2", [5]])
+    game_area.set_square(4, 11, ["a2", [4]])
 
-    areaSquares[7][6] = ["a1", [6]]
-    areaSquares[7][8] = ["a1", [6]]
-    areaSquares[7][10] = ["a1", [6]]
+    game_area.set_square(7, 6, ["a1", [6]])
+    game_area.set_square(7, 8, ["a1", [6]])
+    game_area.set_square(7, 10, ["a1", [6]])
 
-    areaSquares[8][5] = ["a1", [6]]
-    areaSquares[8][7] = ["a1", [6]]
-    areaSquares[8][9] = ["a1", [6]]
+    game_area.set_square(8, 5, ["a1", [6]])
+    game_area.set_square(8, 7, ["a1", [6]])
+    game_area.set_square(8, 9, ["a1", [6]])
 
-    areaSquares[9][4] = ["a1", [6]]
-    areaSquares[9][6] = ["a1", [6]]
-    areaSquares[9][8] = ["a1", [3]]
+    game_area.set_square(9, 4, ["a1", [6]])
+    game_area.set_square(9, 6, ["a1", [6]])
+    game_area.set_square(9, 8, ["a1", [3]])
 
-    areaSquares[10][3] = ["a1", [6]]
-    areaSquares[10][5] = ["a1", [3]]
+    game_area.set_square(10, 3, ["a1", [6]])
+    game_area.set_square(10, 5, ["a1", [3]])
 
-    areaSquares[11][2] = ["a1", [3]]
+    game_area.set_square(11, 2, ["a1", [3]])
 
 
 def set_5test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
 
-    areaSquares[2][1] = ["a2", [7]]
-    areaSquares[3][1] = ["a2", [5]]
-    areaSquares[3][2] = ["a1", [1]]
+    game_area.set_square(2, 1, ["a2", [7]])
+    game_area.set_square(3, 1, ["a2", [5]])
+    game_area.set_square(3, 2, ["a1", [1]])
 
-    areaSquares[2][4] = ["a2", [7]]
-    areaSquares[2][5] = ["a2", [4]]
-    areaSquares[3][4] = ["a1", [3]]
+    game_area.set_square(2, 4, ["a2", [7]])
+    game_area.set_square(2, 5, ["a2", [4]])
+    game_area.set_square(3, 4, ["a1", [3]])
 
-    areaSquares[2][7] = ["a2", [5]]
-    areaSquares[2][8] = ["a2", [7]]
-    areaSquares[3][8] = ["a1", [1]]
+    game_area.set_square(2, 7, ["a2", [5]])
+    game_area.set_square(2, 8, ["a2", [7]])
+    game_area.set_square(3, 8, ["a1", [1]])
 
-    areaSquares[2][11] = ["a1", [6]]
-    areaSquares[3][11] = ["a2", [2]]
-    areaSquares[3][10] = ["a2", [5]]
+    game_area.set_square(2, 11, ["a1", [6]])
+    game_area.set_square(3, 11, ["a2", [2]])
+    game_area.set_square(3, 10, ["a2", [5]])
 
-    areaSquares[9][9] = ["a2", [5]]
-    areaSquares[10][10] = ["a2", [4]]
-    areaSquares[9][10] = ["a2", [7]]
-    areaSquares[10][9] = ["a2", [2]]
+    game_area.set_square(9, 9, ["a2", [5]])
+    game_area.set_square(10, 10, ["a2", [4]])
+    game_area.set_square(9, 10, ["a2", [7]])
+    game_area.set_square(10, 9, ["a2", [2]])
 
-    areaSquares[5][1] = ["a2", [7]]
-    areaSquares[6][1] = ["2"]
-    areaSquares[6][2] = ["2"]
-    areaSquares[7][1] = ["a2", [5]]
-    areaSquares[7][2] = ["2"]
-    areaSquares[7][3] = ["a1", [1]]
+    game_area.set_square(5, 1, ["a2", [7]])
+    game_area.set_square(6, 1, ["2"])
+    game_area.set_square(6, 2, ["2"])
+    game_area.set_square(7, 1, ["a2", [5]])
+    game_area.set_square(7, 2, ["2"])
+    game_area.set_square(7, 3, ["a1", [1]])
 
-    areaSquares[5][5] = ["a2", [7]]
-    areaSquares[5][6] = ["2"]
-    areaSquares[5][7] = ["a2", [4]]
-    areaSquares[6][5] = ["2"]
-    areaSquares[6][6] = ["2"]
-    areaSquares[7][5] = ["a1", [3]]
+    game_area.set_square(5, 5, ["a2", [7]])
+    game_area.set_square(5, 6, ["2"])
+    game_area.set_square(5, 7, ["a2", [4]])
+    game_area.set_square(6, 5, ["2"])
+    game_area.set_square(6, 6, ["2"])
+    game_area.set_square(7, 5, ["a1", [3]])
 
-    areaSquares[9][1] = ["a1", [8]]
-    areaSquares[9][2] = ["2"]
-    areaSquares[9][3] = ["a2", [4]]
-    areaSquares[10][2] = ["2"]
-    areaSquares[10][3] = ["2"]
-    areaSquares[11][3] = ["a2", [2]]
+    game_area.set_square(9, 1, ["a1", [8]])
+    game_area.set_square(9, 2, ["2"])
+    game_area.set_square(9, 3, ["a2", [4]])
+    game_area.set_square(10, 2, ["2"])
+    game_area.set_square(10, 3, ["2"])
+    game_area.set_square(11, 3, ["a2", [2]])
 
-    areaSquares[9][7] = ["a1", [6]]
-    areaSquares[10][7] = ["2"]
-    areaSquares[10][6] = ["2"]
-    areaSquares[11][7] = ["a2", [2]]
-    areaSquares[11][6] = ["2"]
-    areaSquares[11][5] = ["a2", [5]]
+    game_area.set_square(9, 7, ["a1", [6]])
+    game_area.set_square(10, 7, ["2"])
+    game_area.set_square(10, 6, ["2"])
+    game_area.set_square(11, 7, ["a2", [2]])
+    game_area.set_square(11, 6, ["2"])
+    game_area.set_square(11, 5, ["a2", [5]])
 
 
 def set_6test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
 
-    areaSquares[1][3] = ["a1", [6]]
-    areaSquares[2][2] = ["a1", [8]]
-    areaSquares[2][4] = ["a1", [1]]
-    areaSquares[3][3] = ["a1", [3]]
+    game_area.set_square(1, 3, ["a1", [6]])
+    game_area.set_square(2, 2, ["a1", [8]])
+    game_area.set_square(2, 4, ["a1", [1]])
+    game_area.set_square(3, 3, ["a1", [3]])
 
-    areaSquares[5][1] = ["a2", [5]]
-    areaSquares[5][2] = ["2"]
-    areaSquares[5][3] = ["a2", [7]]
-    areaSquares[6][1] = ["2"]
+    game_area.set_square(5, 1, ["a2", [5]])
+    game_area.set_square(5, 2, ["2"])
+    game_area.set_square(5, 3, ["a2", [7]])
+    game_area.set_square(6, 1, ["2"])
 
-    areaSquares[6][3] = ["2"]
-    areaSquares[7][1] = ["a2", [2]]
-    areaSquares[7][2] = ["2"]
-    areaSquares[7][3] = ["a2", [4]]
+    game_area.set_square(6, 3, ["2"])
+    game_area.set_square(7, 1, ["a2", [2]])
+    game_area.set_square(7, 2, ["2"])
+    game_area.set_square(7, 3, ["a2", [4]])
 
-    areaSquares[5][7] = ["a1", [8]]
-    areaSquares[6][8] = ["2"]
-    areaSquares[7][9] = ["a1", [6]]
-    areaSquares[8][8] = ["2"]
-    areaSquares[9][7] = ["a1", [1]]
-    areaSquares[8][6] = ["2"]
-    areaSquares[7][5] = ["a1", [3]]
-    areaSquares[6][6] = ["2"]
+    game_area.set_square(5, 7, ["a1", [8]])
+    game_area.set_square(6, 8, ["2"])
+    game_area.set_square(7, 9, ["a1", [6]])
+    game_area.set_square(8, 8, ["2"])
+    game_area.set_square(9, 7, ["a1", [1]])
+    game_area.set_square(8, 6, ["2"])
+    game_area.set_square(7, 5, ["a1", [3]])
+    game_area.set_square(6, 6, ["2"])
 
 
 def set_7test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
 
-    areaSquares[2][2] = ["a2", [5]]
-    areaSquares[2][3] = ["a3", [4, 5]]
-    areaSquares[2][4] = ["a2", [4]]
+    game_area.set_square(2, 2, ["a2", [5]])
+    game_area.set_square(2, 3, ["a3", [4, 5]])
+    game_area.set_square(2, 4, ["a2", [4]])
 
-    areaSquares[1][6] = ["a2", [7]]
-    areaSquares[2][6] = ["a3", [2, 7]]
-    areaSquares[3][6] = ["a2", [2]]
+    game_area.set_square(1, 6, ["a2", [7]])
+    game_area.set_square(2, 6, ["a3", [2, 7]])
+    game_area.set_square(3, 6, ["a2", [2]])
 
-    areaSquares[4][3] = ["a1", [6]]
-    areaSquares[5][2] = ["a4", [3, 6]]
-    areaSquares[6][1] = ["a1", [3]]
+    game_area.set_square(4, 3, ["a1", [6]])
+    game_area.set_square(5, 2, ["a4", [3, 6]])
+    game_area.set_square(6, 1, ["a1", [3]])
 
-    areaSquares[8][1] = ["a1", [8]]
-    areaSquares[9][2] = ["a4", [1, 8]]
-    areaSquares[10][3] = ["a1", [1]]
+    game_area.set_square(8, 1, ["a1", [8]])
+    game_area.set_square(9, 2, ["a4", [1, 8]])
+    game_area.set_square(10, 3, ["a1", [1]])
 
-    areaSquares[5][6] = ["a2", [7]]
-    areaSquares[6][5] = ["a2", [5]]
-    areaSquares[6][6] = ["a6", [2, 4, 5, 7]]
-    areaSquares[6][7] = ["a2", [4]]
-    areaSquares[7][6] = ["a2", [2]]
+    game_area.set_square(5, 6, ["a2", [7]])
+    game_area.set_square(6, 5, ["a2", [5]])
+    game_area.set_square(6, 6, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(6, 7, ["a2", [4]])
+    game_area.set_square(7, 6, ["a2", [2]])
 
-    areaSquares[9][5] = ["a1", [8]]
-    areaSquares[9][7] = ["a1", [6]]
-    areaSquares[10][6] = ["a5", [1, 3, 6, 8]]
-    areaSquares[11][5] = ["a1", [3]]
-    areaSquares[11][7] = ["a1", [1]]
+    game_area.set_square(9, 5, ["a1", [8]])
+    game_area.set_square(9, 7, ["a1", [6]])
+    game_area.set_square(10, 6, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(11, 5, ["a1", [3]])
+    game_area.set_square(11, 7, ["a1", [1]])
 
 
 def set_8test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
 
-    areaSquares[2][4] = ["a1", [6]]
-    areaSquares[3][2] = ["a2", [5]]
-    areaSquares[3][3] = ["a7", [3, 4, 7]]
-    areaSquares[4][3] = ["a2", [2]]
+    game_area.set_square(2, 4, ["a1", [6]])
+    game_area.set_square(3, 2, ["a2", [5]])
+    game_area.set_square(3, 3, ["a7", [3, 4, 7]])
+    game_area.set_square(4, 3, ["a2", [2]])
 
-    areaSquares[2][7] = ["a1", [8]]
-    areaSquares[3][8] = ["a7", [1, 7, 5]]
-    areaSquares[3][9] = ["a2", [4]]
-    areaSquares[4][8] = ["a2", [2]]
+    game_area.set_square(2, 7, ["a1", [8]])
+    game_area.set_square(3, 8, ["a7", [1, 7, 5]])
+    game_area.set_square(3, 9, ["a2", [4]])
+    game_area.set_square(4, 8, ["a2", [2]])
 
-    areaSquares[7][3] = ["a2", [7]]
-    areaSquares[8][2] = ["a2", [5]]
-    areaSquares[8][3] = ["a7", [8, 2, 4]]
-    areaSquares[9][4] = ["a1", [1]]
+    game_area.set_square(7, 3, ["a2", [7]])
+    game_area.set_square(8, 2, ["a2", [5]])
+    game_area.set_square(8, 3, ["a7", [8, 2, 4]])
+    game_area.set_square(9, 4, ["a1", [1]])
 
-    areaSquares[7][8] = ["a2", [7]]
-    areaSquares[8][8] = ["a7", [6, 2, 5]]
-    areaSquares[8][9] = ["a2", [4]]
-    areaSquares[9][7] = ["a1", [3]]
+    game_area.set_square(7, 8, ["a2", [7]])
+    game_area.set_square(8, 8, ["a7", [6, 2, 5]])
+    game_area.set_square(8, 9, ["a2", [4]])
+    game_area.set_square(9, 7, ["a1", [3]])
 
 
 def set_9test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
 
-    areaSquares[2][2] = ["a6", [2, 4, 5, 7]]
-    areaSquares[3][3] = ["a6", [2, 4, 5, 7]]
-    areaSquares[2][3] = ["a6", [2, 4, 5, 7]]
-    areaSquares[3][2] = ["a6", [2, 4, 5, 7]]
+    game_area.set_square(2, 2, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(3, 3, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(2, 3, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(3, 2, ["a6", [2, 4, 5, 7]])
 
-    areaSquares[2][6] = ["a7", [6, 2, 5]]
-    areaSquares[3][5] = ["a7", [3, 4, 7]]
+    game_area.set_square(2, 6, ["a7", [6, 2, 5]])
+    game_area.set_square(3, 5, ["a7", [3, 4, 7]])
 
-    areaSquares[5][2] = ["a2", [5]]
-    areaSquares[5][3] = ["a3", [4, 5]]
+    game_area.set_square(5, 2, ["a2", [5]])
+    game_area.set_square(5, 3, ["a3", [4, 5]])
 
-    areaSquares[6][5] = ["a4", [3, 6]]
-    areaSquares[5][6] = ["a4", [3, 6]]
+    game_area.set_square(6, 5, ["a4", [3, 6]])
+    game_area.set_square(5, 6, ["a4", [3, 6]])
 
-    areaSquares[7][3] = ["a3", [4, 5]]
-    areaSquares[7][2] = ["a3", [2, 7]]
-    areaSquares[8][2] = ["a3", [4, 5]]
-    areaSquares[8][3] = ["a3", [2, 7]]
+    game_area.set_square(7, 3, ["a3", [4, 5]])
+    game_area.set_square(7, 2, ["a3", [2, 7]])
+    game_area.set_square(8, 2, ["a3", [4, 5]])
+    game_area.set_square(8, 3, ["a3", [2, 7]])
 
-    areaSquares[8][5] = ["a3", [4, 5]]
-    areaSquares[8][6] = ["a3", [4, 5]]
+    game_area.set_square(8, 5, ["a3", [4, 5]])
+    game_area.set_square(8, 6, ["a3", [4, 5]])
 
-    areaSquares[10][2] = ["a7", [1, 5, 7]]
-    areaSquares[10][3] = ["a7", [3, 4, 7]]
-    areaSquares[11][2] = ["a7", [6, 2, 5]]
-    areaSquares[11][3] = ["a7", [8, 2, 4]]
+    game_area.set_square(10, 2, ["a7", [1, 5, 7]])
+    game_area.set_square(10, 3, ["a7", [3, 4, 7]])
+    game_area.set_square(11, 2, ["a7", [6, 2, 5]])
+    game_area.set_square(11, 3, ["a7", [8, 2, 4]])
 
-    areaSquares[2][9] = ["a5", [1, 3, 6, 8]]
-    areaSquares[2][11] = ["a5", [1, 3, 6, 8]]
-    areaSquares[3][10] = ["a5", [1, 3, 6, 8]]
-    areaSquares[4][9] = ["a5", [1, 3, 6, 8]]
-    areaSquares[4][11] = ["a5", [1, 3, 6, 8]]
+    game_area.set_square(2, 9, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(2, 11, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(3, 10, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(4, 9, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(4, 11, ["a5", [1, 3, 6, 8]])
 
 
 def set_10test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
 
-    areaSquares[2][2] = ["a6", [2, 4, 5, 7]]
-    areaSquares[2][3] = ["2"]
-    areaSquares[2][4] = ["a6", [2, 4, 5, 7]]
-    areaSquares[3][2] = ["2"]
+    game_area.set_square(2, 2, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(2, 3, ["2"])
+    game_area.set_square(2, 4, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(3, 2, ["2"])
 
-    areaSquares[3][4] = ["2"]
-    areaSquares[4][2] = ["a6", [2, 4, 5, 7]]
-    areaSquares[4][3] = ["2"]
-    areaSquares[4][4] = ["a6", [2, 4, 5, 7]]
+    game_area.set_square(3, 4, ["2"])
+    game_area.set_square(4, 2, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(4, 3, ["2"])
+    game_area.set_square(4, 4, ["a6", [2, 4, 5, 7]])
 
-    areaSquares[6][2] = ["a7", [1, 5, 7]]
-    areaSquares[6][3] = ["2"]
-    areaSquares[6][4] = ["a7", [3, 4, 7]]
-    areaSquares[7][2] = ["2"]
+    game_area.set_square(6, 2, ["a7", [1, 5, 7]])
+    game_area.set_square(6, 3, ["2"])
+    game_area.set_square(6, 4, ["a7", [3, 4, 7]])
+    game_area.set_square(7, 2, ["2"])
 
-    areaSquares[7][4] = ["2"]
-    areaSquares[8][2] = ["a7", [6, 2, 5]]
-    areaSquares[8][3] = ["2"]
-    areaSquares[8][4] = ["a7", [8, 2, 4]]
+    game_area.set_square(7, 4, ["2"])
+    game_area.set_square(8, 2, ["a7", [6, 2, 5]])
+    game_area.set_square(8, 3, ["2"])
+    game_area.set_square(8, 4, ["a7", [8, 2, 4]])
 
-    areaSquares[10][2] = ["a2", [5]]
-    areaSquares[10][3] = ["2"]
-    areaSquares[10][4] = ["a3", [4, 5]]
+    game_area.set_square(10, 2, ["a2", [5]])
+    game_area.set_square(10, 3, ["2"])
+    game_area.set_square(10, 4, ["a3", [4, 5]])
 
-    areaSquares[1][8] = ["a7", [6, 2, 5]]
-    areaSquares[2][7] = ["2"]
-    areaSquares[3][6] = ["a7", [3, 4, 7]]
+    game_area.set_square(1, 8, ["a7", [6, 2, 5]])
+    game_area.set_square(2, 7, ["2"])
+    game_area.set_square(3, 6, ["a7", [3, 4, 7]])
 
-    areaSquares[5][8] = ["a4", [3, 6]]
-    areaSquares[6][7] = ["2"]
-    areaSquares[7][6] = ["a4", [3, 6]]
+    game_area.set_square(5, 8, ["a4", [3, 6]])
+    game_area.set_square(6, 7, ["2"])
+    game_area.set_square(7, 6, ["a4", [3, 6]])
 
-    areaSquares[10][6] = ["a3", [4, 5]]
-    areaSquares[10][7] = ["2"]
-    areaSquares[10][8] = ["a3", [4, 5]]
+    game_area.set_square(10, 6, ["a3", [4, 5]])
+    game_area.set_square(10, 7, ["2"])
+    game_area.set_square(10, 8, ["a3", [4, 5]])
 
 
 def set_11test_area():
-    clear_area(areaOpen)
-    clear_area(areaSquares)
-    fill_area(areaSquares, "e2")
+    game_area.clear_area()
+    game_area.fill_area(["e2"])
 
-    areaSquares[4][4] = ["a5", [1, 3, 6, 8]]
-    areaSquares[5][5] = ["2"]
-    areaSquares[6][6] = ["a5", [1, 3, 6, 8]]
-    areaSquares[7][7] = ["2"]
-    areaSquares[8][8] = ["a5", [1, 3, 6, 8]]
+    game_area.set_square(4, 4, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(5, 5, ["2"])
+    game_area.set_square(6, 6, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(7, 7, ["2"])
+    game_area.set_square(8, 8, ["a5", [1, 3, 6, 8]])
 
-    areaSquares[4][8] = ["a5", [1, 3, 6, 8]]
-    areaSquares[5][7] = ["2"]
-    areaSquares[7][5] = ["2"]
-    areaSquares[8][4] = ["a5", [1, 3, 6, 8]]
+    game_area.set_square(4, 8, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(5, 7, ["2"])
+    game_area.set_square(7, 5, ["2"])
+    game_area.set_square(8, 4, ["a5", [1, 3, 6, 8]])
 
 
 #
 
-
-clear_area(areaOpen)
-clear_area(areaSquares)
-clear_area(areaMoney)
+game_area.clear_area()
 
 set_1test_area()
 
-print_area(areaSquares, "Массив", ps="Поле")
-print_area(areaSquares, "Поле", ps="Поле")
-show_area(areaSquares, areaOpen)
+print_area(game_area.squares, "Массив", ps="Поле")
+print_area(game_area.squares, "Поле", ps="Поле")
+update_window()
 
 game_mode = "select"  # select — выбор пешки, move — ход пешкой
 flag_holdup = False
@@ -1901,31 +1912,30 @@ while running:
                     mouse_click(event.pos, "Y", time.time() - temp_time)
                 if event.button == 3:
                     mouse_click_cancel_select(event.pos, time.time() - temp_time)
+            update_window()
             flag_holdup = False
 
         elif event.type == pygame.MOUSEWHEEL:
             change_scope(event.y)
+            update_window()
 
         elif event.type == pygame.MOUSEMOTION and flag_holdup:
             change_place(event.rel)
+            update_window()
 
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
-                clear_area(areaSquares)
-                clear_area(areaOpen)
-                mix_area(areaSquares)
-                print_area(areaSquares, "Поле", ps="Поле")
-                show_area(areaSquares, areaOpen)
+                game_area.mix_area()
+                print_area(game_area.squares, "Поле", ps="Поле")
 
             elif event.key == pygame.K_o:
-                fill_area(areaOpen, 1)
-                show_area(areaSquares, areaOpen)
+                game_area.open_area()
 
             elif event.key == pygame.K_v:
-                drunk()
+                game_players.drunk(game_area)
 
             elif event.key == pygame.K_r:
-                reborn_pawn(rebirth)
+                game_players.reborn_pawn(game_area)
 
             elif event.key == pygame.K_0:
                 set_2test_area()
@@ -1947,5 +1957,6 @@ while running:
                 set_10test_area()
             elif event.key == pygame.K_9:
                 set_11test_area()
+            update_window()
 
     clock.tick(fps)
