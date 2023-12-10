@@ -297,7 +297,7 @@ class Area:
         allowed_steps = set()
         for y in range(0, len(self.squares)):
             for x in range(0, len(self.squares[y])):
-                if self.opened and \
+                if self.opened[y][x] and \
                         self.squares[y][x][0] != "S" and \
                         self.squares[y][x][0] != "c" and \
                         self.squares[y][x][0] != "2":
@@ -386,9 +386,8 @@ class Players:
         return self.selected_color
 
     def kill_pawn(self):
-        print(self.get_pawn(self.selected_color).curr)
         print("\033[31m{}\033[0m".format(f"☠ Убита пешка:        "
-                                         f"{', '.join(map(str, self.get_pawn(self.selected_color).curr))}"
+                                         f"{', '.join(map(str, self.get_pawn(self.selected_color).curr))} "
                                          f"{self.selected_color['color']}"))
 
         self.players[self.selected_color['color']]['pawns'].pop(self.selected_color['pawn'])
@@ -885,8 +884,7 @@ def print_area(area: list, mode: str, ps=""):
 
 
 def print_in_window(text: str, coord_xy: tuple):
-    line = RobotoRegular.render(text, True, text_color, bg_color)
-    window.blit(line, coord_xy)
+    window.blit(RobotoRegular.render(text, True, text_color, bg_color), coord_xy)
 
 
 def change_scope(delta: int):
@@ -928,19 +926,20 @@ def mouse_click_cancel_select(coord_xy: tuple, delay: float):
     x = (coord_xy[0] - place_x) // scope
     y = (coord_xy[1] - place_y) // scope
 
-    if game_area.inside_area(x, y) and \
-            game_players.get_select_pawn().curr == [x, y] and \
-            "a" not in game_area.get_square(*game_players.get_select_pawn().curr)[0] and \
-            game_area.get_square(*game_players.get_select_pawn().curr)[0] != "2" and \
-            (game_area.get_square(*game_players.get_select_pawn().curr)[0] != "l" or
-             game_area.get_square(*game_players.get_select_pawn().curr)[1] == 0):
-        game_players.cancel_select()
-        game_mode = "select"
-        way_pawn = []
-        print("\033[35m{}\033[0m".format(f"  Отмена выбора пешки: "
-                                         f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{game_area.get_square(x, y)}"
-                                         f"{' ' * (50 - len(str(game_area.get_square(x, y))))}"
-                                         f"Δt {delay}"))
+    if game_players.is_selected():
+        if game_area.inside_area(x, y) and \
+                game_players.get_select_pawn().curr == [x, y] and \
+                "a" not in game_area.get_square(*game_players.get_select_pawn().curr)[0] and \
+                game_area.get_square(*game_players.get_select_pawn().curr)[0] != "2" and \
+                (game_area.get_square(*game_players.get_select_pawn().curr)[0] != "l" or
+                 game_area.get_square(*game_players.get_select_pawn().curr)[1] == 0):
+            game_players.cancel_select()
+            game_mode = "select"
+            way_pawn = []
+            print("\033[35m{}\033[0m".format(f"  Отмена выбора пешки: "
+                                             f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{game_area.get_square(x, y)}"
+                                             f"{' ' * (50 - len(str(game_area.get_square(x, y))))}"
+                                             f"Δt {delay}"))
 
 
 def mouse_click_select(x: int, y: int, delay: float) -> list:
@@ -1110,7 +1109,9 @@ def check_second_steps(x: int, y: int) -> list:
                                      f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{game_area.get_square(x, y)}"
                                      f"{' ' * (50 - len(str(game_area.get_square(x, y))))}"))
     steps = []
-    if loop_search(x, y):
+
+    if game_players.check_other_boats(*game_players.get_select_pawn().curr) or \
+            loop_search(x, y):
         game_players.kill_pawn()
         game_players.cancel_select()
         game_mode = "select"
@@ -1224,9 +1225,6 @@ def check_second_steps(x: int, y: int) -> list:
         else:
             game_players.kick_pawn(game_players.get_select())
 
-    if game_players.check_other_boats(*game_players.get_select_pawn().curr):
-        game_players.kill_pawn()
-
     game_players.cancel_select()
     game_mode = "select"
     return []
@@ -1245,6 +1243,7 @@ def mouse_click(coord_xy: tuple, color: str, delay: float):
         elif game_mode == "move":
             mouse_click_move(x, y, delay)
     if game_area.inside_area(x, y):
+        update_window()
         print_in_window(f"{game_area.get_square(x, y)}\n{x}, {y}", coord_xy)
 
 
@@ -1271,8 +1270,8 @@ def loop_search(start_x: int, start_y: int) -> bool:
 
         # print(f"↗ Проверка стрелки:  "
         #       f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x][1]}")
-
         for digit in game_area.get_square(x, y)[1]:
+
             new_x = x + digit2delta[digit][0]
             new_y = y + digit2delta[digit][1]
             if game_area.inside_area(new_x, new_y) and \
@@ -1295,7 +1294,7 @@ def loop_search(start_x: int, start_y: int) -> bool:
         old_y = last_coord_xy[1]
 
         if game_area.inside_area(coord_xy[0], coord_xy[1]):
-            if game_area.get_open(coord_xy[1], coord_xy[0]):
+            if game_area.get_open(coord_xy[0], coord_xy[1]):
                 if game_area.get_square(x, y)[0] == "2":
                     check_step((x + (x - old_x), y + (y - old_y)), (x, y))
                 elif "a" in game_area.get_square(x, y)[0] and (x, y) not in used_steps:
@@ -1392,7 +1391,6 @@ def update_window():
                      boat.curr[1] * scope + place_y))
 
         for pawn in game_players.players[player]["pawns"]:
-            print("12345678")
             if game_players.is_selected():
                 mark = pawn == game_players.get_select_pawn()
             else:
@@ -1459,268 +1457,268 @@ def set_1test_area():
     game_area.set_square(6, 6, ["h"])
     game_area.set_square(7, 8, ["2"])
 
-    game_area.set_square(7, 2, ["a2", [2]])
-    game_area.set_square(8, 2, ["a2", [2]])
-    game_area.set_square(9, 2, ["a2", [2]])
-    game_area.set_square(9, 1, ["f"])
-    game_area.set_square(9, 3, ["f"])
+    game_area.set_square(2, 7, ["a2", [2]])
+    game_area.set_square(2, 8, ["a2", [2]])
+    game_area.set_square(2, 9, ["a2", [2]])
+    game_area.set_square(1, 9, ["f"])
+    game_area.set_square(3, 9, ["f"])
 
-    game_area.set_square(8, 7, ["a7", [3, 4, 7]])
+    game_area.set_square(7, 8, ["a7", [3, 4, 7]])
     game_area.set_square(2, 2, ["p", True])
     game_area.set_square(3, 3, ["f"])
-    game_area.set_square(5, 4, ["c"])
-    game_area.set_square(7, 9, ["r"])
-    game_area.set_square(4, 1, ["j"])
-    game_area.set_square(10, 6, ["g", [4]])
-    game_area.set_square(3, 10, ["q", True])
+    game_area.set_square(4, 5, ["c"])
+    game_area.set_square(9, 7, ["r"])
+    game_area.set_square(1, 4, ["j"])
+    game_area.set_square(6, 10, ["g", [4]])
+    game_area.set_square(10, 3, ["q", True])
 
     # areaSquares[5][8] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
     # areaSquares[10][8] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
     # areaSquares[7][2] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
     # areaSquares[2][6] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
 
-    game_area.set_square(10, 9, ["a1", [3]])
-    game_area.set_square(9, 10, ["c"])
+    game_area.set_square(9, 10, ["a1", [3]])
+    game_area.set_square(10, 9, ["c"])
 
-    game_area.set_square(11, 2, ["a2", [5]])
-    game_area.set_square(11, 3, ["2"])
-    game_area.set_square(11, 4, ["a2", [4]])
+    game_area.set_square(2, 11, ["a2", [5]])
+    game_area.set_square(3, 11, ["2"])
+    game_area.set_square(4, 11, ["a2", [4]])
 
     # areaSquares[11][4] = ["a3", [4, 5]]
     # areaSquares[11][6] = ["a3", [4, 5]]
-    game_area.set_square(6, 9, ["2"])
+    game_area.set_square(9, 6, ["2"])
     # areaSquares[3][4] = ["2"]
-    game_area.set_square(3, 4, ["a2", [4]])
-    game_area.set_square(2, 10, ["l", 3])
-    game_area.set_square(1, 4, ["2"])
+    game_area.set_square(4, 3, ["a2", [4]])
+    game_area.set_square(10, 2, ["l", 3])
+    game_area.set_square(4, 1, ["2"])
 
-    game_area.set_square(6, 11, ["a2", [4]])
+    game_area.set_square(11, 6, ["a2", [4]])
 
-    game_area.set_square(11, 5, ["tc"])
-    game_area.set_square(11, 6, ["t2"])
-    game_area.set_square(11, 7, ["t3"])
-    game_area.set_square(11, 8, ["t4"])
-    game_area.set_square(11, 9, ["t5"])
+    game_area.set_square(5, 11, ["tc"])
+    game_area.set_square(6, 11, ["t2"])
+    game_area.set_square(7, 11, ["t3"])
+    game_area.set_square(8, 11, ["t4"])
+    game_area.set_square(9, 11, ["t5"])
 
 
 def set_2test_area():
     game_area.clear_area()
     game_area.fill_area(["e2"])
-    game_area.set_square(5, 3, ["2"])
-    game_area.set_square(6, 3, ["2"])
-    game_area.set_square(7, 3, ["2"])
-    game_area.set_square(8, 3, ["2"])
+    game_area.set_square(3, 5, ["2"])
+    game_area.set_square(3, 6, ["2"])
+    game_area.set_square(3, 7, ["2"])
+    game_area.set_square(3, 8, ["2"])
 
-    game_area.set_square(6, 4, ["2"])
-    game_area.set_square(7, 4, ["2"])
-    game_area.set_square(8, 4, ["2"])
+    game_area.set_square(4, 6, ["2"])
+    game_area.set_square(4, 7, ["2"])
+    game_area.set_square(4, 8, ["2"])
 
-    game_area.set_square(7, 5, ["2"])
-    game_area.set_square(8, 5, ["2"])
+    game_area.set_square(5, 7, ["2"])
+    game_area.set_square(5, 8, ["2"])
 
-    game_area.set_square(8, 6, ["2"])
+    game_area.set_square(6, 8, ["2"])
 
-    game_area.set_square(5, 2, ["a2", [5]])
-    game_area.set_square(6, 2, ["a2", [5]])
-    game_area.set_square(7, 2, ["a2", [5]])
-    game_area.set_square(8, 2, ["a2", [5]])
-
-    game_area.set_square(5, 4, ["a2", [4]])
-    game_area.set_square(6, 5, ["a2", [4]])
-    game_area.set_square(7, 6, ["a2", [4]])
-    game_area.set_square(8, 7, ["a2", [4]])
-
-    game_area.set_square(3, 2, ["a1", [3]])
-    game_area.set_square(2, 3, ["a1", [6]])
-
-    game_area.set_square(2, 5, ["a1", [8]])
-    game_area.set_square(3, 6, ["a1", [1]])
-
+    game_area.set_square(2, 5, ["a2", [5]])
+    game_area.set_square(2, 6, ["a2", [5]])
+    game_area.set_square(2, 7, ["a2", [5]])
     game_area.set_square(2, 8, ["a2", [5]])
-    game_area.set_square(2, 9, ["a2", [4]])
+
+    game_area.set_square(4, 5, ["a2", [4]])
+    game_area.set_square(5, 6, ["a2", [4]])
+    game_area.set_square(6, 7, ["a2", [4]])
+    game_area.set_square(7, 8, ["a2", [4]])
+
+    game_area.set_square(2, 3, ["a1", [3]])
+    game_area.set_square(3, 2, ["a1", [6]])
+
+    game_area.set_square(5, 2, ["a1", [8]])
+    game_area.set_square(6, 3, ["a1", [1]])
+
+    game_area.set_square(8, 2, ["a2", [5]])
+    game_area.set_square(9, 2, ["a2", [4]])
 
 
 def set_3test_area():
     game_area.clear_area()
     game_area.fill_area(["e2"])
-    game_area.set_square(3, 1, ["a1", [3]])
-    game_area.set_square(4, 1, ["a1", [3]])
-    game_area.set_square(5, 1, ["a1", [3]])
-    game_area.set_square(6, 1, ["a1", [3]])
+    game_area.set_square(1, 3, ["a1", [3]])
+    game_area.set_square(1, 4, ["a1", [3]])
+    game_area.set_square(1, 5, ["a1", [3]])
+    game_area.set_square(1, 6, ["a1", [3]])
 
-    game_area.set_square(1, 3, ["a1", [6]])
-    game_area.set_square(1, 4, ["a1", [6]])
-    game_area.set_square(1, 5, ["a1", [6]])
-    game_area.set_square(1, 6, ["a1", [6]])
+    game_area.set_square(3, 1, ["a1", [6]])
+    game_area.set_square(4, 1, ["a1", [6]])
+    game_area.set_square(5, 1, ["a1", [6]])
+    game_area.set_square(6, 1, ["a1", [6]])
 
-    game_area.set_square(6, 5, ["a1", [8]])
+    game_area.set_square(5, 6, ["a1", [8]])
     game_area.set_square(6, 6, ["a1", [8]])
-    game_area.set_square(6, 7, ["a1", [8]])
-    game_area.set_square(6, 8, ["a1", [8]])
+    game_area.set_square(7, 6, ["a1", [8]])
+    game_area.set_square(8, 6, ["a1", [8]])
 
-    game_area.set_square(8, 10, ["a1", [1]])
-    game_area.set_square(9, 10, ["a1", [1]])
+    game_area.set_square(10, 8, ["a1", [1]])
+    game_area.set_square(10, 9, ["a1", [1]])
     game_area.set_square(10, 10, ["a1", [1]])
-    game_area.set_square(11, 10, ["a1", [1]])
+    game_area.set_square(10, 11, ["a1", [1]])
 
     game_area.set_square(2, 2, ["2"])
-    game_area.set_square(3, 2, ["2"])
-    game_area.set_square(4, 2, ["2"])
-    game_area.set_square(5, 2, ["2"])
-
     game_area.set_square(2, 3, ["2"])
-    game_area.set_square(3, 3, ["2"])
-    game_area.set_square(4, 3, ["2"])
-
     game_area.set_square(2, 4, ["2"])
-    game_area.set_square(3, 4, ["2"])
-
     game_area.set_square(2, 5, ["2"])
 
-    game_area.set_square(7, 9, ["2"])
-    game_area.set_square(8, 9, ["2"])
-    game_area.set_square(9, 9, ["2"])
-    game_area.set_square(10, 9, ["2"])
+    game_area.set_square(3, 2, ["2"])
+    game_area.set_square(3, 3, ["2"])
+    game_area.set_square(3, 4, ["2"])
 
-    game_area.set_square(7, 8, ["2"])
-    game_area.set_square(8, 8, ["2"])
+    game_area.set_square(4, 2, ["2"])
+    game_area.set_square(4, 3, ["2"])
+
+    game_area.set_square(5, 2, ["2"])
+
+    game_area.set_square(9, 7, ["2"])
     game_area.set_square(9, 8, ["2"])
+    game_area.set_square(9, 9, ["2"])
+    game_area.set_square(9, 10, ["2"])
+
+    game_area.set_square(8, 7, ["2"])
+    game_area.set_square(8, 8, ["2"])
+    game_area.set_square(8, 9, ["2"])
 
     game_area.set_square(7, 7, ["2"])
-    game_area.set_square(8, 7, ["2"])
+    game_area.set_square(7, 8, ["2"])
 
-    game_area.set_square(7, 6, ["2"])
+    game_area.set_square(6, 7, ["2"])
 
 
 def set_4test_area():
     game_area.clear_area()
     game_area.fill_area(["e2"])
 
-    game_area.set_square(2, 3, ["a2", [5]])
-    game_area.set_square(2, 4, ["a2", [4]])
-    game_area.set_square(2, 5, ["a2", [4]])
-    game_area.set_square(2, 7, ["a2", [5]])
-    game_area.set_square(2, 8, ["a2", [5]])
-    game_area.set_square(2, 9, ["a2", [4]])
-
     game_area.set_square(3, 2, ["a2", [5]])
-    game_area.set_square(3, 3, ["a2", [4]])
-    game_area.set_square(3, 4, ["a2", [4]])
-    game_area.set_square(3, 5, ["a2", [4]])
-    game_area.set_square(3, 7, ["a2", [5]])
-    game_area.set_square(3, 8, ["a2", [5]])
-    game_area.set_square(3, 9, ["a2", [5]])
-    game_area.set_square(3, 10, ["a2", [4]])
-
-    game_area.set_square(4, 1, ["a2", [5]])
     game_area.set_square(4, 2, ["a2", [4]])
+    game_area.set_square(5, 2, ["a2", [4]])
+    game_area.set_square(7, 2, ["a2", [5]])
+    game_area.set_square(8, 2, ["a2", [5]])
+    game_area.set_square(9, 2, ["a2", [4]])
+
+    game_area.set_square(2, 3, ["a2", [5]])
+    game_area.set_square(3, 3, ["a2", [4]])
     game_area.set_square(4, 3, ["a2", [4]])
+    game_area.set_square(5, 3, ["a2", [4]])
+    game_area.set_square(7, 3, ["a2", [5]])
+    game_area.set_square(8, 3, ["a2", [5]])
+    game_area.set_square(9, 3, ["a2", [5]])
+    game_area.set_square(10, 3, ["a2", [4]])
+
+    game_area.set_square(1, 4, ["a2", [5]])
+    game_area.set_square(2, 4, ["a2", [4]])
+    game_area.set_square(3, 4, ["a2", [4]])
     game_area.set_square(4, 4, ["a2", [4]])
-    game_area.set_square(4, 5, ["a2", [4]])
-    game_area.set_square(4, 7, ["a2", [5]])
-    game_area.set_square(4, 8, ["a2", [5]])
-    game_area.set_square(4, 9, ["a2", [5]])
-    game_area.set_square(4, 10, ["a2", [5]])
-    game_area.set_square(4, 11, ["a2", [4]])
+    game_area.set_square(5, 4, ["a2", [4]])
+    game_area.set_square(7, 4, ["a2", [5]])
+    game_area.set_square(8, 4, ["a2", [5]])
+    game_area.set_square(9, 4, ["a2", [5]])
+    game_area.set_square(10, 4, ["a2", [5]])
+    game_area.set_square(11, 4, ["a2", [4]])
 
-    game_area.set_square(7, 6, ["a1", [6]])
-    game_area.set_square(7, 8, ["a1", [6]])
-    game_area.set_square(7, 10, ["a1", [6]])
-
-    game_area.set_square(8, 5, ["a1", [6]])
+    game_area.set_square(6, 7, ["a1", [6]])
     game_area.set_square(8, 7, ["a1", [6]])
-    game_area.set_square(8, 9, ["a1", [6]])
+    game_area.set_square(10, 7, ["a1", [6]])
 
-    game_area.set_square(9, 4, ["a1", [6]])
-    game_area.set_square(9, 6, ["a1", [6]])
-    game_area.set_square(9, 8, ["a1", [3]])
+    game_area.set_square(5, 8, ["a1", [6]])
+    game_area.set_square(7, 8, ["a1", [6]])
+    game_area.set_square(9, 8, ["a1", [6]])
 
-    game_area.set_square(10, 3, ["a1", [6]])
-    game_area.set_square(10, 5, ["a1", [3]])
+    game_area.set_square(4, 9, ["a1", [6]])
+    game_area.set_square(6, 9, ["a1", [6]])
+    game_area.set_square(8, 9, ["a1", [3]])
 
-    game_area.set_square(11, 2, ["a1", [3]])
+    game_area.set_square(3, 10, ["a1", [6]])
+    game_area.set_square(5, 10, ["a1", [3]])
+
+    game_area.set_square(2, 11, ["a1", [3]])
 
 
 def set_5test_area():
     game_area.clear_area()
     game_area.fill_area(["e2"])
 
-    game_area.set_square(2, 1, ["a2", [7]])
-    game_area.set_square(3, 1, ["a2", [5]])
-    game_area.set_square(3, 2, ["a1", [1]])
+    game_area.set_square(1, 2, ["a2", [7]])
+    game_area.set_square(1, 3, ["a2", [5]])
+    game_area.set_square(2, 3, ["a1", [1]])
 
-    game_area.set_square(2, 4, ["a2", [7]])
-    game_area.set_square(2, 5, ["a2", [4]])
-    game_area.set_square(3, 4, ["a1", [3]])
+    game_area.set_square(4, 2, ["a2", [7]])
+    game_area.set_square(5, 2, ["a2", [4]])
+    game_area.set_square(4, 3, ["a1", [3]])
 
-    game_area.set_square(2, 7, ["a2", [5]])
-    game_area.set_square(2, 8, ["a2", [7]])
-    game_area.set_square(3, 8, ["a1", [1]])
+    game_area.set_square(7, 2, ["a2", [5]])
+    game_area.set_square(8, 2, ["a2", [7]])
+    game_area.set_square(8, 3, ["a1", [1]])
 
-    game_area.set_square(2, 11, ["a1", [6]])
-    game_area.set_square(3, 11, ["a2", [2]])
-    game_area.set_square(3, 10, ["a2", [5]])
+    game_area.set_square(11, 2, ["a1", [6]])
+    game_area.set_square(11, 3, ["a2", [2]])
+    game_area.set_square(10, 3, ["a2", [5]])
 
     game_area.set_square(9, 9, ["a2", [5]])
     game_area.set_square(10, 10, ["a2", [4]])
-    game_area.set_square(9, 10, ["a2", [7]])
-    game_area.set_square(10, 9, ["a2", [2]])
+    game_area.set_square(10, 9, ["a2", [7]])
+    game_area.set_square(9, 10, ["a2", [2]])
 
-    game_area.set_square(5, 1, ["a2", [7]])
-    game_area.set_square(6, 1, ["2"])
-    game_area.set_square(6, 2, ["2"])
-    game_area.set_square(7, 1, ["a2", [5]])
-    game_area.set_square(7, 2, ["2"])
-    game_area.set_square(7, 3, ["a1", [1]])
+    game_area.set_square(1, 5, ["a2", [7]])
+    game_area.set_square(1, 6, ["2"])
+    game_area.set_square(2, 6, ["2"])
+    game_area.set_square(1, 7, ["a2", [5]])
+    game_area.set_square(2, 7, ["2"])
+    game_area.set_square(3, 7, ["a1", [1]])
 
     game_area.set_square(5, 5, ["a2", [7]])
-    game_area.set_square(5, 6, ["2"])
-    game_area.set_square(5, 7, ["a2", [4]])
     game_area.set_square(6, 5, ["2"])
+    game_area.set_square(7, 5, ["a2", [4]])
+    game_area.set_square(5, 6, ["2"])
     game_area.set_square(6, 6, ["2"])
-    game_area.set_square(7, 5, ["a1", [3]])
+    game_area.set_square(5, 7, ["a1", [3]])
 
-    game_area.set_square(9, 1, ["a1", [8]])
-    game_area.set_square(9, 2, ["2"])
-    game_area.set_square(9, 3, ["a2", [4]])
-    game_area.set_square(10, 2, ["2"])
-    game_area.set_square(10, 3, ["2"])
-    game_area.set_square(11, 3, ["a2", [2]])
+    game_area.set_square(1, 9, ["a1", [8]])
+    game_area.set_square(2, 9, ["2"])
+    game_area.set_square(3, 9, ["a2", [4]])
+    game_area.set_square(2, 10, ["2"])
+    game_area.set_square(3, 10, ["2"])
+    game_area.set_square(3, 11, ["a2", [2]])
 
-    game_area.set_square(9, 7, ["a1", [6]])
-    game_area.set_square(10, 7, ["2"])
-    game_area.set_square(10, 6, ["2"])
-    game_area.set_square(11, 7, ["a2", [2]])
-    game_area.set_square(11, 6, ["2"])
-    game_area.set_square(11, 5, ["a2", [5]])
+    game_area.set_square(7, 9, ["a1", [6]])
+    game_area.set_square(7, 10, ["2"])
+    game_area.set_square(6, 10, ["2"])
+    game_area.set_square(7, 11, ["a2", [2]])
+    game_area.set_square(6, 11, ["2"])
+    game_area.set_square(5, 11, ["a2", [5]])
 
 
 def set_6test_area():
     game_area.clear_area()
     game_area.fill_area(["e2"])
 
-    game_area.set_square(1, 3, ["a1", [6]])
+    game_area.set_square(3, 1, ["a1", [6]])
     game_area.set_square(2, 2, ["a1", [8]])
-    game_area.set_square(2, 4, ["a1", [1]])
+    game_area.set_square(4, 2, ["a1", [1]])
     game_area.set_square(3, 3, ["a1", [3]])
 
-    game_area.set_square(5, 1, ["a2", [5]])
-    game_area.set_square(5, 2, ["2"])
-    game_area.set_square(5, 3, ["a2", [7]])
-    game_area.set_square(6, 1, ["2"])
+    game_area.set_square(1, 5, ["a2", [5]])
+    game_area.set_square(2, 5, ["2"])
+    game_area.set_square(3, 5, ["a2", [7]])
+    game_area.set_square(1, 6, ["2"])
 
-    game_area.set_square(6, 3, ["2"])
-    game_area.set_square(7, 1, ["a2", [2]])
-    game_area.set_square(7, 2, ["2"])
-    game_area.set_square(7, 3, ["a2", [4]])
+    game_area.set_square(3, 6, ["2"])
+    game_area.set_square(1, 7, ["a2", [2]])
+    game_area.set_square(2, 7, ["2"])
+    game_area.set_square(3, 7, ["a2", [4]])
 
-    game_area.set_square(5, 7, ["a1", [8]])
-    game_area.set_square(6, 8, ["2"])
-    game_area.set_square(7, 9, ["a1", [6]])
-    game_area.set_square(8, 8, ["2"])
-    game_area.set_square(9, 7, ["a1", [1]])
+    game_area.set_square(7, 5, ["a1", [8]])
     game_area.set_square(8, 6, ["2"])
-    game_area.set_square(7, 5, ["a1", [3]])
+    game_area.set_square(9, 7, ["a1", [6]])
+    game_area.set_square(8, 8, ["2"])
+    game_area.set_square(7, 9, ["a1", [1]])
+    game_area.set_square(6, 8, ["2"])
+    game_area.set_square(5, 7, ["a1", [3]])
     game_area.set_square(6, 6, ["2"])
 
 
@@ -1729,57 +1727,57 @@ def set_7test_area():
     game_area.fill_area(["e2"])
 
     game_area.set_square(2, 2, ["a2", [5]])
-    game_area.set_square(2, 3, ["a3", [4, 5]])
-    game_area.set_square(2, 4, ["a2", [4]])
+    game_area.set_square(3, 2, ["a3", [4, 5]])
+    game_area.set_square(4, 2, ["a2", [4]])
 
-    game_area.set_square(1, 6, ["a2", [7]])
-    game_area.set_square(2, 6, ["a3", [2, 7]])
-    game_area.set_square(3, 6, ["a2", [2]])
+    game_area.set_square(6, 1, ["a2", [7]])
+    game_area.set_square(6, 2, ["a3", [2, 7]])
+    game_area.set_square(6, 3, ["a2", [2]])
 
-    game_area.set_square(4, 3, ["a1", [6]])
-    game_area.set_square(5, 2, ["a4", [3, 6]])
-    game_area.set_square(6, 1, ["a1", [3]])
+    game_area.set_square(3, 4, ["a1", [6]])
+    game_area.set_square(2, 5, ["a4", [3, 6]])
+    game_area.set_square(1, 6, ["a1", [3]])
 
-    game_area.set_square(8, 1, ["a1", [8]])
-    game_area.set_square(9, 2, ["a4", [1, 8]])
-    game_area.set_square(10, 3, ["a1", [1]])
+    game_area.set_square(1, 8, ["a1", [8]])
+    game_area.set_square(2, 9, ["a4", [1, 8]])
+    game_area.set_square(3, 10, ["a1", [1]])
 
-    game_area.set_square(5, 6, ["a2", [7]])
-    game_area.set_square(6, 5, ["a2", [5]])
+    game_area.set_square(6, 5, ["a2", [7]])
+    game_area.set_square(5, 6, ["a2", [5]])
     game_area.set_square(6, 6, ["a6", [2, 4, 5, 7]])
-    game_area.set_square(6, 7, ["a2", [4]])
-    game_area.set_square(7, 6, ["a2", [2]])
+    game_area.set_square(7, 6, ["a2", [4]])
+    game_area.set_square(6, 7, ["a2", [2]])
 
-    game_area.set_square(9, 5, ["a1", [8]])
-    game_area.set_square(9, 7, ["a1", [6]])
-    game_area.set_square(10, 6, ["a5", [1, 3, 6, 8]])
-    game_area.set_square(11, 5, ["a1", [3]])
-    game_area.set_square(11, 7, ["a1", [1]])
+    game_area.set_square(5, 9, ["a1", [8]])
+    game_area.set_square(7, 9, ["a1", [6]])
+    game_area.set_square(6, 10, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(5, 11, ["a1", [3]])
+    game_area.set_square(7, 11, ["a1", [1]])
 
 
 def set_8test_area():
     game_area.clear_area()
     game_area.fill_area(["e2"])
 
-    game_area.set_square(2, 4, ["a1", [6]])
-    game_area.set_square(3, 2, ["a2", [5]])
+    game_area.set_square(4, 2, ["a1", [6]])
+    game_area.set_square(2, 3, ["a2", [5]])
     game_area.set_square(3, 3, ["a7", [3, 4, 7]])
-    game_area.set_square(4, 3, ["a2", [2]])
+    game_area.set_square(3, 4, ["a2", [2]])
 
-    game_area.set_square(2, 7, ["a1", [8]])
-    game_area.set_square(3, 8, ["a7", [1, 7, 5]])
-    game_area.set_square(3, 9, ["a2", [4]])
-    game_area.set_square(4, 8, ["a2", [2]])
+    game_area.set_square(7, 2, ["a1", [8]])
+    game_area.set_square(8, 3, ["a7", [1, 7, 5]])
+    game_area.set_square(9, 3, ["a2", [4]])
+    game_area.set_square(8, 4, ["a2", [2]])
 
-    game_area.set_square(7, 3, ["a2", [7]])
-    game_area.set_square(8, 2, ["a2", [5]])
-    game_area.set_square(8, 3, ["a7", [8, 2, 4]])
-    game_area.set_square(9, 4, ["a1", [1]])
+    game_area.set_square(3, 7, ["a2", [7]])
+    game_area.set_square(2, 8, ["a2", [5]])
+    game_area.set_square(3, 8, ["a7", [8, 2, 4]])
+    game_area.set_square(4, 9, ["a1", [1]])
 
-    game_area.set_square(7, 8, ["a2", [7]])
+    game_area.set_square(8, 7, ["a2", [7]])
     game_area.set_square(8, 8, ["a7", [6, 2, 5]])
-    game_area.set_square(8, 9, ["a2", [4]])
-    game_area.set_square(9, 7, ["a1", [3]])
+    game_area.set_square(9, 8, ["a2", [4]])
+    game_area.set_square(7, 9, ["a1", [3]])
 
 
 def set_9test_area():
@@ -1788,36 +1786,36 @@ def set_9test_area():
 
     game_area.set_square(2, 2, ["a6", [2, 4, 5, 7]])
     game_area.set_square(3, 3, ["a6", [2, 4, 5, 7]])
-    game_area.set_square(2, 3, ["a6", [2, 4, 5, 7]])
     game_area.set_square(3, 2, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(2, 3, ["a6", [2, 4, 5, 7]])
 
-    game_area.set_square(2, 6, ["a7", [6, 2, 5]])
-    game_area.set_square(3, 5, ["a7", [3, 4, 7]])
+    game_area.set_square(6, 2, ["a7", [6, 2, 5]])
+    game_area.set_square(5, 3, ["a7", [3, 4, 7]])
 
-    game_area.set_square(5, 2, ["a2", [5]])
-    game_area.set_square(5, 3, ["a3", [4, 5]])
+    game_area.set_square(2, 5, ["a2", [5]])
+    game_area.set_square(3, 5, ["a3", [4, 5]])
 
-    game_area.set_square(6, 5, ["a4", [3, 6]])
     game_area.set_square(5, 6, ["a4", [3, 6]])
+    game_area.set_square(6, 5, ["a4", [3, 6]])
 
-    game_area.set_square(7, 3, ["a3", [4, 5]])
-    game_area.set_square(7, 2, ["a3", [2, 7]])
-    game_area.set_square(8, 2, ["a3", [4, 5]])
-    game_area.set_square(8, 3, ["a3", [2, 7]])
+    game_area.set_square(3, 7, ["a3", [4, 5]])
+    game_area.set_square(2, 7, ["a3", [2, 7]])
+    game_area.set_square(2, 8, ["a3", [4, 5]])
+    game_area.set_square(3, 8, ["a3", [2, 7]])
 
-    game_area.set_square(8, 5, ["a3", [4, 5]])
-    game_area.set_square(8, 6, ["a3", [4, 5]])
+    game_area.set_square(5, 8, ["a3", [4, 5]])
+    game_area.set_square(6, 8, ["a3", [4, 5]])
 
-    game_area.set_square(10, 2, ["a7", [1, 5, 7]])
-    game_area.set_square(10, 3, ["a7", [3, 4, 7]])
-    game_area.set_square(11, 2, ["a7", [6, 2, 5]])
-    game_area.set_square(11, 3, ["a7", [8, 2, 4]])
+    game_area.set_square(2, 10, ["a7", [1, 5, 7]])
+    game_area.set_square(3, 10, ["a7", [3, 4, 7]])
+    game_area.set_square(2, 11, ["a7", [6, 2, 5]])
+    game_area.set_square(3, 11, ["a7", [8, 2, 4]])
 
-    game_area.set_square(2, 9, ["a5", [1, 3, 6, 8]])
-    game_area.set_square(2, 11, ["a5", [1, 3, 6, 8]])
-    game_area.set_square(3, 10, ["a5", [1, 3, 6, 8]])
-    game_area.set_square(4, 9, ["a5", [1, 3, 6, 8]])
-    game_area.set_square(4, 11, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(9, 2, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(11, 2, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(10, 3, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(9, 4, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(11, 4, ["a5", [1, 3, 6, 8]])
 
 
 def set_10test_area():
@@ -1825,40 +1823,40 @@ def set_10test_area():
     game_area.fill_area(["e2"])
 
     game_area.set_square(2, 2, ["a6", [2, 4, 5, 7]])
-    game_area.set_square(2, 3, ["2"])
-    game_area.set_square(2, 4, ["a6", [2, 4, 5, 7]])
     game_area.set_square(3, 2, ["2"])
-
-    game_area.set_square(3, 4, ["2"])
     game_area.set_square(4, 2, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(2, 3, ["2"])
+
     game_area.set_square(4, 3, ["2"])
+    game_area.set_square(2, 4, ["a6", [2, 4, 5, 7]])
+    game_area.set_square(3, 4, ["2"])
     game_area.set_square(4, 4, ["a6", [2, 4, 5, 7]])
 
-    game_area.set_square(6, 2, ["a7", [1, 5, 7]])
-    game_area.set_square(6, 3, ["2"])
-    game_area.set_square(6, 4, ["a7", [3, 4, 7]])
-    game_area.set_square(7, 2, ["2"])
-
-    game_area.set_square(7, 4, ["2"])
-    game_area.set_square(8, 2, ["a7", [6, 2, 5]])
-    game_area.set_square(8, 3, ["2"])
-    game_area.set_square(8, 4, ["a7", [8, 2, 4]])
-
-    game_area.set_square(10, 2, ["a2", [5]])
-    game_area.set_square(10, 3, ["2"])
-    game_area.set_square(10, 4, ["a3", [4, 5]])
-
-    game_area.set_square(1, 8, ["a7", [6, 2, 5]])
+    game_area.set_square(2, 6, ["a7", [1, 5, 7]])
+    game_area.set_square(3, 6, ["2"])
+    game_area.set_square(4, 6, ["a7", [3, 4, 7]])
     game_area.set_square(2, 7, ["2"])
-    game_area.set_square(3, 6, ["a7", [3, 4, 7]])
 
-    game_area.set_square(5, 8, ["a4", [3, 6]])
-    game_area.set_square(6, 7, ["2"])
-    game_area.set_square(7, 6, ["a4", [3, 6]])
+    game_area.set_square(4, 7, ["2"])
+    game_area.set_square(2, 8, ["a7", [6, 2, 5]])
+    game_area.set_square(3, 8, ["2"])
+    game_area.set_square(4, 8, ["a7", [8, 2, 4]])
 
-    game_area.set_square(10, 6, ["a3", [4, 5]])
-    game_area.set_square(10, 7, ["2"])
-    game_area.set_square(10, 8, ["a3", [4, 5]])
+    game_area.set_square(2, 10, ["a2", [5]])
+    game_area.set_square(3, 10, ["2"])
+    game_area.set_square(4, 10, ["a3", [4, 5]])
+
+    game_area.set_square(8, 1, ["a7", [6, 2, 5]])
+    game_area.set_square(7, 2, ["2"])
+    game_area.set_square(6, 3, ["a7", [3, 4, 7]])
+
+    game_area.set_square(8, 5, ["a4", [3, 6]])
+    game_area.set_square(7, 6, ["2"])
+    game_area.set_square(6, 7, ["a4", [3, 6]])
+
+    game_area.set_square(6, 10, ["a3", [4, 5]])
+    game_area.set_square(7, 10, ["2"])
+    game_area.set_square(8, 10, ["a3", [4, 5]])
 
 
 def set_11test_area():
@@ -1871,10 +1869,10 @@ def set_11test_area():
     game_area.set_square(7, 7, ["2"])
     game_area.set_square(8, 8, ["a5", [1, 3, 6, 8]])
 
-    game_area.set_square(4, 8, ["a5", [1, 3, 6, 8]])
-    game_area.set_square(5, 7, ["2"])
-    game_area.set_square(7, 5, ["2"])
     game_area.set_square(8, 4, ["a5", [1, 3, 6, 8]])
+    game_area.set_square(7, 5, ["2"])
+    game_area.set_square(5, 7, ["2"])
+    game_area.set_square(4, 8, ["a5", [1, 3, 6, 8]])
 
 
 #
@@ -1909,10 +1907,9 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP:
             if time.time() - temp_time < time_tap:
                 if event.button == 1:
-                    mouse_click(event.pos, "Y", time.time() - temp_time)
+                    mouse_click(event.pos, "B", time.time() - temp_time)  # update_window() внутриprint_in_window()
                 if event.button == 3:
                     mouse_click_cancel_select(event.pos, time.time() - temp_time)
-            update_window()
             flag_holdup = False
 
         elif event.type == pygame.MOUSEWHEEL:
