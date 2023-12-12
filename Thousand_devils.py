@@ -4,68 +4,35 @@ import pygame
 import time
 from random import choice
 
-window_height = 800
-window_width = window_height * 16 / 9
-
-fps = 60
-scope = 95
-place_x = 110
-place_y = -450
-time_tap = 0.17
-way_pawn = []
-
-flag_holdup = False
-temp_time = 0.0
-running = True
-
-# Цвета
-bg_color = (255, 255, 255)
-text_color = (0, 0, 0)
-mark_step_color = (50, 205, 50, 255 / 2)
-mark_select_color = (0, 255, 0, 255 / 1.5)
-mark_frame_color = (0, 128, 0)
-mark_block_color = (255, 0, 0)
-pawn_select_color = (50, 205, 50)
-# mark_step_color = (139, 0, 139, 255 / 2)
-# white = (255, 255, 255)
-# dark_blue_a = (0, 0, 139, 255/2)
-# dark_blue = (0, 0, 139, 255)
-# deep_pink_a = (255, 20, 147, 255/2)
-
-
 pygame.init()
-clock = pygame.time.Clock()
+print("\033[36m{}\033[0m".format("\n  Подготовка игры"))
 
-print("\033[36m{}\033[0m".format("\n☸ Игра началась ☸"))
 
-digit2delta = {
-    1: (-1, -1),
-    2: (0, -1),
-    3: (1, -1),
-    4: (-1, 0),
-    5: (1, 0),
-    6: (-1, 1),
-    7: (0, 1),
-    8: (1, 1),
-    9: (-1, -2),
-    10: (1, -2),
-    11: (-2, -1),
-    12: (2, -1),
-    13: (-2, 1),
-    14: (2, 1),
-    15: (-1, 2),
-    16: (1, 2)
-}
-digit2degrees = {
-    1: "-270",
-    2: "-270",
-    3: "-0",
-    4: "-180",
-    5: "-0",
-    6: "-180",
-    7: "-90",
-    8: "-90"
-}
+class TheGameCycle:
+    def __init__(self, cycle: dict, start_player: str):
+        self.__cycle = []
+        # Построение цикла по часовой стрелке
+        for i in cycle.keys():
+            for j in cycle.keys():
+                if (cycle[i][0] - cycle[j][0]) * (cycle[i][1] - cycle[j][1]) > 0:
+                    self.__cycle.append(j)
+                    break
+
+        # Если один/два элемента, то верхний алгоритм не сработает
+        if len(self.__cycle) != len(cycle):
+            for i in cycle.keys():
+                self.__cycle.append(i)
+
+        self.__active_player = self.__cycle.index(start_player)
+
+    def set_next(self):
+        if self.__active_player == len(self.__cycle) - 1:
+            self.__active_player = 0
+        else:
+            self.__active_player += 1
+
+    def get_current(self) -> str:
+        return self.__cycle[self.__active_player]
 
 
 class Area:
@@ -186,6 +153,9 @@ class Area:
                             elif chosen == "d":
                                 den_coords_xy.append((x, y))
                                 break
+                            elif "m" in chosen and chosen != "m":
+                                self.__squares[y][x] = [chosen, True]
+                                break
                             else:
                                 self.__squares[y][x][0] = chosen
                                 break
@@ -239,18 +209,55 @@ class Area:
             area = self.__squares
         else:
             print("\033[31m{}\033[0m".format(f"Поля {name_area} не существует\n"))
+            return
 
         if mode == "Поле":
             print("\033[34m{}\033[0m".format(f"\n▦ Просмотр поля: {ps}"))
-            print("\033[34m{}\033[0m".format("     0  1  2  3  4  5  6  7  8  9 10 11 12"))
+            line = "   "
             for y in range(0, len(area)):
-                line = "  " + str(y) \
-                       + " " * (3 - len(str(y)))
-                for x in range(0, len(area[y])):
-                    line = line \
-                           + str(area[y][x][0]) \
-                           + " " * (3 - len(str(area[y][x][0])))
-                print("\033[34m{}\033[0m".format(f"{line}"))
+                line = line \
+                       + " " * (3 - len(str(y))) \
+                       + str(y)
+            print("\033[34m{}\033[0m".format(line + "  x →"))
+
+            if name_area == "opened":
+                for y in range(0, len(area)):
+                    line = "  " + str(y) \
+                           + " " * (3 - len(str(y)))
+                    for x in range(0, len(area[y])):
+                        icon = "♦"
+                        if area[y][x]:
+                            icon = "♢"
+                        if self.__squares[y][x][0] == "S":
+                            icon = " "
+                        if self.__squares[y][x][0] == "n":
+                            icon = "x"
+                        line = line + icon + "  "
+                    print("\033[34m{}\033[0m".format(f"{line}"))
+            elif name_area == "moneys":
+                for y in range(0, len(area)):
+                    line = "  " + str(y) \
+                           + " " * (3 - len(str(y)))
+                    for x in range(0, len(area[y])):
+                        line = line \
+                               + str(area[y][x]) \
+                               + " " * (3 - len(str(area[y][x])))
+                    print("\033[34m{}\033[0m".format(f"{line}"))
+            elif name_area == "squares":
+                for y in range(0, len(area)):
+                    line = "  " + str(y) \
+                           + " " * (3 - len(str(y)))
+                    for x in range(0, len(area[y])):
+                        line = line \
+                               + str(area[y][x][0]) \
+                               + " " * (3 - len(str(area[y][x][0])))
+                    print("\033[34m{}\033[0m".format(f"{line}"))
+            print("\033[34m{}\033[0m".format("  y"))
+            print("\033[34m{}\033[0m".format("  ↓"))
+
+
+
+
 
         elif mode == "Массив":
             print("\033[34m{}\033[0m".format(f"\n▥ Просмотр массива: {ps}"))
@@ -281,21 +288,6 @@ class Pawn:
 
     def info(self) -> str:
         return f"{self.last} {self.curr} {self.skip}"
-
-
-class TheGameCycle:
-    def __init__(self, cycle: list, start_player: str):
-        self.__cycle = cycle
-        self.__active_player = cycle.index(start_player)
-
-    def set_next(self):
-        if self.__active_player == len(self.__cycle) - 1:
-            self.__active_player = 0
-        else:
-            self.__active_player += 1
-
-    def get_current(self) -> str:
-        return self.__cycle[self.__active_player]
 
 
 class Players:
@@ -352,8 +344,8 @@ class Players:
         self.players[self.selected_color['color']]['pawns'].pop(self.selected_color['pawn'])
 
     def kick_pawn(self, kicked_pawn: dict):
-        print("\033[35m{}\033[0m".format(f"⎋ Пешка на корабле:  "
-                                         f"{', '.join(map(str, self.get_pawn(kicked_pawn).curr))}"
+        print("\033[35m{}\033[0m".format(f"⎋ Пешка на корабле:    "
+                                         f"{', '.join(map(str, self.get_pawn(kicked_pawn).curr))} "
                                          f"{kicked_pawn['color']}"))
 
         self.get_pawn(kicked_pawn).curr = [self.get_boat(kicked_pawn).curr[0],
@@ -688,6 +680,83 @@ class Screen:
             mark_stroke_squares(way_pawn, pawn_select_color)
 
 
+def loop_search(start_x: int, start_y: int) -> bool:
+    def check_arrow(coord_xy: tuple):
+        nonlocal used_steps
+
+        x = coord_xy[0]
+        y = coord_xy[1]
+
+        # print(f"↗ Проверка стрелки:  "
+        #       f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x][1]}")
+        for digit in game_area.get_square(x, y)[1]:
+            new_x = x + digit2delta[digit][0]
+            new_y = y + digit2delta[digit][1]
+            if game_area.inside_area(new_x, new_y) and \
+                    (new_x, new_y) not in used_steps:
+                if game_area.get_open(new_x, new_y):
+                    if "a" in game_area.get_square(new_x, new_y)[0]:
+                        used_steps.add((new_x, new_y))
+                        check_arrow((new_x, new_y))
+                    else:
+                        check_step((new_x, new_y), (x, y))
+                else:
+                    used_steps.add((new_x, new_y))
+
+    def check_step(coord_xy: tuple, last_coord_xy: tuple):
+        nonlocal used_steps, checked_steps
+
+        x = coord_xy[0]
+        y = coord_xy[1]
+        old_x = last_coord_xy[0]
+        old_y = last_coord_xy[1]
+
+        if game_area.inside_area(coord_xy[0], coord_xy[1]):
+            if game_area.get_open(coord_xy[0], coord_xy[1]):
+                if game_area.get_square(x, y)[0] == "2":
+                    check_step((x + (x - old_x), y + (y - old_y)), (x, y))
+                elif "a" in game_area.get_square(x, y)[0] and (x, y) not in used_steps:
+                    used_steps.add((x, y))
+                    check_arrow((x, y))
+                elif game_area.get_square(x, y)[0] != "c" and \
+                        (x, y) not in used_steps and \
+                        ((game_area.get_square(x, y)[0] != "f" or
+                          game_area.get_square(x, y)[0] != "r") and
+                         game_players.check_other_pawns(x, y) == 0):
+                    used_steps.add((x, y))
+            else:
+                if (x, y) not in used_steps:
+                    used_steps.add((x, y))
+
+        # print(f"☐ Проверка шага:     "
+        #       f"{x}, {y}"
+        #       f"{' ' * (4 - (x // 10 + y // 10))}{(x, y) in used_steps}")
+
+    checked_digits = [1, 2, 3, 4, 5, 6, 7, 8]
+    checked_steps = []
+    used_steps = set()
+    extra_quantity = 0
+
+    if game_area.inside_area(start_x, start_y):
+        if "a" in game_area.get_square(start_x, start_y)[0]:
+            checked_digits = game_area.get_square(start_x, start_y)[1]
+        for digit in checked_digits:  # Получаем из направлений координаты
+            checked_steps.append((start_x + digit2delta[digit][0],
+                                  start_y + digit2delta[digit][1]))
+        for step in checked_steps:  # Проверяем координаты
+            check_step(step, (start_x, start_y))
+    for step in used_steps:
+        if ("a" in game_area.get_square(step[0], step[1])[0] or
+            game_area.get_square(step[0], step[1])[0] == "2") and \
+                game_area.get_open(step[0], step[1]):
+            extra_quantity += 1
+    used_steps = list(used_steps)
+    # print_area(used_steps, "Строка", ps="Координаты, куда можно сходить")
+    # mark_fill_squares(list(used_steps), mark_select_color)
+    # show_area(areaSquares, areaOpen)
+    return len(used_steps) - extra_quantity == 0
+
+
 def file2area(name_file: str, hide=False):  # Аргумент hide для проверки
     if not hide:
         print(f'⎙ Создание поля из файла "{name_file[:-4]}"')
@@ -910,11 +979,6 @@ def file2area(name_file: str, hide=False):  # Аргумент hide для пр�
                                          f"Координаты начала: {start_coord_xy}"))
         return False
 
-    cycle = []
-
-    for i in pawn_color.keys():
-        cycle.append(i)
-
     for key in pawn_color.keys():
         for i in range(len(pawn_color[key])):
             try:
@@ -976,25 +1040,35 @@ def file2area(name_file: str, hide=False):  # Аргумент hide для пр�
         return False
 
     if not hide:
-        print("\033[32m{}".format(f"  Название карты:\n  {name_area}"))
+        print("\033[32m{}".format(f"  Название карты: {name_area}\n"))
         print(f"  Каркас поля:")
         for y in range(len(area)):
             line = ''
             for x in range(len(area[y])):
                 line = line + str(area[y][x]) + ' '
             print(f"  {line}")
-        print(f"  Количество кораблей:\n  {boats}")
-        print(f"  Количество пешек:\n  {pawns}")
-        print(f"  Старт-корабль:\n  {start_boat}")
-        print(f"  Цвета кораблей:\n  {pawn_color}")
-        print(f"  Координаты кораблей:\n  {start_coord_xy}")
-        print(f"  Карточки:\n  {squares}")
-        print("\033[32m{}\033[0m".format(f"  Цикл игры:\n  {cycle}"))
-
+        print(f"\n  Кол-во      Кол-во   Старт")
+        print(f"  кораблей:   пешек:   корабль:")
+        print(f"  {boats}{' ' * (13 - int(str(boats)))}{pawns}{' ' * (10 - int(str(boats)))}{start_boat}")
+        print(f"\n  Цвета кораблей:")
+        for key in pawn_color.keys():
+            print(f"  {key}: {pawn_color[key]}")
+        print(f"\n  Координаты кораблей:")
+        for key in start_coord_xy.keys():
+            print(f"  {key}: {start_coord_xy[key]}")
+        print(f"  Карточки:")
+        line = "  "
+        i = 0
+        for key in squares.keys():
+            i += 1
+            line += f"{key}: {squares[key]} "
+            if i == 4:
+                line += "\n  "
+                i = 0
+        print("\033[32m{}\033[0m".format(f"{line}"))
     return {"area": area,
             "pawns": pawns,
             "start_boat": start_boat,
-            "cycle": cycle,
             "pawn2color": pawn_color,
             "start_coord_xy": start_coord_xy,
             "squares": squares}
@@ -1014,6 +1088,7 @@ def illuminate(x: int, y: int):
 
                 game_area.get_square(*game_players.get_select_pawn().curr)[1] -= 1
                 if game_area.get_square(*game_players.get_select_pawn().curr)[1] == 0:
+                    game_cycle.set_next()
                     game_mode = "select"
                     game_players.cancel_select()
         else:
@@ -1238,13 +1313,39 @@ def check_second_steps(x: int, y: int) -> list:
         game_players.kill_pawn()
         game_players.cancel_select()
         game_mode = "select"
+        game_cycle.set_next()
         return []
+
+    if game_players.check_other_pawns(x, y) > 0 and \
+            game_area.get_square(x, y)[0] != "j":
+        if game_players.check_other_pawns(x, y) == 1:
+            game_players.kick_pawn(game_players.take_other_pawn(x, y))
+        else:
+            game_players.kick_pawn(game_players.get_select())
+            game_players.kick_pawn(game_players.take_other_pawn(x, y))
 
     if "a" in game_area.get_square(x, y)[0]:
         for digit in game_area.get_square(x, y)[1]:
             steps.append((x + digit2delta[digit][0],
                           y + digit2delta[digit][1]))
         return steps
+
+    elif game_area.get_square(x, y)[0] == "2":
+        if game_area.get_square(*game_players.get_select_pawn().last)[0] == "h":
+            for digit in [9, 10, 11, 12, 13, 14, 15, 16]:
+                steps.append((x + digit2delta[digit][0], y + digit2delta[digit][1]))
+            return steps
+        else:
+            delta_x = game_players.get_select_pawn().curr[0] - \
+                      game_players.get_select_pawn().last[0]
+            delta_y = game_players.get_select_pawn().curr[1] - \
+                      game_players.get_select_pawn().last[1]
+
+            game_players.set_pawn_last(game_players.get_select_pawn().curr)
+            game_players.set_pawn_curr([game_players.get_select_pawn().curr[0] + delta_x,
+                                        game_players.get_select_pawn().curr[1] + delta_y])
+            game_area.set_open(*game_players.get_select_pawn().curr, True)
+            return check_second_steps(*game_players.get_select_pawn().curr)
 
     elif "t" in game_area.get_square(x, y)[0]:
         if game_area.get_square(x, y)[0] != "tk" and \
@@ -1293,40 +1394,31 @@ def check_second_steps(x: int, y: int) -> list:
         illuminate(-1, -1)
         return []
 
-    elif game_area.get_square(x, y)[0] == "2":
-
-        if game_area.get_square(*game_players.get_select_pawn().last)[0] == "h":
-            for digit in [9, 10, 11, 12, 13, 14, 15, 16]:
-                steps.append((x + digit2delta[digit][0], y + digit2delta[digit][1]))
-            return steps
-        else:
-            delta_x = game_players.get_select_pawn().curr[0] - \
-                      game_players.get_select_pawn().last[0]
-            delta_y = game_players.get_select_pawn().curr[1] - \
-                      game_players.get_select_pawn().last[1]
-
-            game_players.set_pawn_last(game_players.get_select_pawn().curr)
-            game_players.set_pawn_curr([game_players.get_select_pawn().curr[0] + delta_x,
-                                        game_players.get_select_pawn().curr[1] + delta_y])
-            game_area.set_open(*game_players.get_select_pawn().curr, True)
-            return check_second_steps(*game_players.get_select_pawn().curr)
-
     elif game_area.get_square(x, y)[0] == "d":
         den_open_coords_xy = []
         for step in game_area.get_square(x, y)[1]:
-            if game_area.get_open(step[0], step[1]):
+            if game_area.get_open(*step):
                 den_open_coords_xy.append(step)
+
+        print(f"{den_open_coords_xy = }")
+        print(f"{len(den_open_coords_xy) = }")
 
         if len(den_open_coords_xy) == 2 and \
                 den_open_coords_xy != game_area.get_square(x, y)[1]:
+            print(f"{game_area.get_square(x, y)[1] = }")
+            print(f"{game_players.take_other_pawn(x, y) = }")
+            print(f"{game_players.get_select() = }")
+
             for coord_xy in den_open_coords_xy:
                 if coord_xy != (x, y):
-                    game_players.kick_pawn(game_players.take_other_pawn(x, y))
-                    game_players.set_pawn_last(game_players.get_select_pawn().curr)
-                    game_players.set_pawn_curr([x, y])
+                    if game_players.check_other_pawns(*coord_xy) != 0:
+                        game_players.kick_pawn(game_players.get_select())
+                    game_players.get_pawn(game_players.take_other_pawn(*coord_xy)).last = \
+                        [*game_players.get_pawn(game_players.take_other_pawn(*coord_xy)).curr]
+                    game_players.get_pawn(game_players.take_other_pawn(*coord_xy)).curr = [x, y]
 
         for step in den_open_coords_xy:
-            game_area.set_square(step[0], step[1], [game_area.get_square(step[0], step[1])[0], den_open_coords_xy])
+            game_area.set_square(step[0], step[1], ["d", den_open_coords_xy])
 
     elif game_area.get_square(x, y)[0] == "g":
         game_players.gunshot(x, y, game_area)
@@ -1336,20 +1428,25 @@ def check_second_steps(x: int, y: int) -> list:
         return check_second_steps(game_players.get_pawn(game_players.get_select()).curr[0],
                                   game_players.get_pawn(game_players.get_select()).curr[1])
 
-    if game_area.get_square(game_players.get_select_pawn().last[0],
-                            game_players.get_select_pawn().last[1])[0] == "p":
+    if game_area.get_square(*game_players.get_select_pawn().last)[0] == "p":
         game_area.set_square(game_players.get_select_pawn().last[0],
                              game_players.get_select_pawn().last[1],
                              ["p", False])
-    if game_players.check_other_pawns(x, y) > 0 and \
-            game_area.get_square(x, y)[0] != "j":
-        if game_players.check_other_pawns(x, y) == 1:
-            game_players.kick_pawn(game_players.take_other_pawn(x, y))
+
+    if "m" in game_area.get_square(x, y)[0] and \
+            game_area.get_square(x, y)[0] != "m" and \
+            game_area.get_square(x, y)[1]:
+        game_area.get_square(x, y)[1] = False
+
+        if game_area.get_square(x, y)[0][1] != "c":
+            game_area.set_money(x, y, int(game_area.get_square(x, y)[0][1]))
+            game_area.print_area("moneys", "Поле", ps="Монетки")
         else:
-            game_players.kick_pawn(game_players.get_select())
+            pass
 
     game_players.cancel_select()
     game_mode = "select"
+    game_cycle.set_next()
     return []
 
 
@@ -1370,104 +1467,84 @@ def mouse_click(coord_xy: tuple, color: str, delay: float):
         window.print_in_window(f"{game_area.get_square(x, y)}\n{x}, {y}", coord_xy)
 
 
+window_height = 800
+window_width = window_height * 16 / 9
+
+fps = 60
+scope = 95
+place_x = 90
+place_y = 10
+time_tap = 0.17
+way_pawn = []
+clock = pygame.time.Clock()
+
+flag_holdup = False
+temp_time = 0.0
+running = True
+
+# Цвета
+bg_color = (255, 255, 255)
+text_color = (0, 0, 0)
+mark_step_color = (50, 205, 50, 255 / 2)
+mark_select_color = (0, 255, 0, 255 / 1.5)
+mark_frame_color = (0, 128, 0)
+mark_block_color = (255, 0, 0)
+pawn_select_color = (50, 205, 50)
+# mark_step_color = (139, 0, 139, 255 / 2)
+# white = (255, 255, 255)
+# dark_blue_a = (0, 0, 139, 255/2)
+# dark_blue = (0, 0, 139, 255)
+# deep_pink_a = (255, 20, 147, 255/2)
+
+digit2delta = {
+    1: (-1, -1),
+    2: (0, -1),
+    3: (1, -1),
+    4: (-1, 0),
+    5: (1, 0),
+    6: (-1, 1),
+    7: (0, 1),
+    8: (1, 1),
+    9: (-1, -2),
+    10: (1, -2),
+    11: (-2, -1),
+    12: (2, -1),
+    13: (-2, 1),
+    14: (2, 1),
+    15: (-1, 2),
+    16: (1, 2)
+}
+digit2degrees = {
+    1: "-270",
+    2: "-270",
+    3: "-0",
+    4: "-180",
+    5: "-0",
+    6: "-180",
+    7: "-90",
+    8: "-90"
+}
+
 if not file2area("AreaN1.txt", hide=True):
     exit()
 setup_dict = file2area("AreaN1.txt")
 
-window = Screen()
-
 game_mode = "select"  # select — выбор пешки, move — ход пешкой
-game_cycle = TheGameCycle(setup_dict["cycle"], setup_dict["start_boat"])
+game_cycle = TheGameCycle(setup_dict["start_coord_xy"], setup_dict["start_boat"])
 game_players = Players(setup_dict["start_coord_xy"], setup_dict["pawns"])
 game_area = Area(setup_dict["area"], setup_dict["squares"])
 game_area.mix_area()
-
-
+window = Screen()
 pawn2color = setup_dict["pawn2color"]
-
-
-def loop_search(start_x: int, start_y: int) -> bool:
-    def check_arrow(coord_xy: tuple):
-        nonlocal used_steps
-
-        x = coord_xy[0]
-        y = coord_xy[1]
-
-        # print(f"↗ Проверка стрелки:  "
-        #       f"{x}, {y}{' ' * (4 - (x // 10 + y // 10))}{areaSquares[y][x][1]}")
-        for digit in game_area.get_square(x, y)[1]:
-
-            new_x = x + digit2delta[digit][0]
-            new_y = y + digit2delta[digit][1]
-            if game_area.inside_area(new_x, new_y) and \
-                    (new_x, new_y) not in used_steps:
-                if game_area.get_open(new_x, new_y):
-                    if "a" in game_area.get_square(new_x, new_y)[0]:
-                        used_steps.add((new_x, new_y))
-                        check_arrow((new_x, new_y))
-                    else:
-                        check_step((new_x, new_y), (x, y))
-                else:
-                    used_steps.add((new_x, new_y))
-
-    def check_step(coord_xy: tuple, last_coord_xy: tuple):
-        nonlocal used_steps, checked_steps
-
-        x = coord_xy[0]
-        y = coord_xy[1]
-        old_x = last_coord_xy[0]
-        old_y = last_coord_xy[1]
-
-        if game_area.inside_area(coord_xy[0], coord_xy[1]):
-            if game_area.get_open(coord_xy[0], coord_xy[1]):
-                if game_area.get_square(x, y)[0] == "2":
-                    check_step((x + (x - old_x), y + (y - old_y)), (x, y))
-                elif "a" in game_area.get_square(x, y)[0] and (x, y) not in used_steps:
-                    used_steps.add((x, y))
-                    check_arrow((x, y))
-                elif game_area.get_square(x, y)[0] != "c" and \
-                        (x, y) not in used_steps and \
-                        (game_area.get_square(x, y)[0] != "f" or
-                         game_area.get_square(x, y)[0] != "r" or
-                         game_players.check_other_pawns(x, y) == 0):
-                    used_steps.add((x, y))
-            else:
-                if (x, y) not in used_steps:
-                    used_steps.add((x, y))
-
-        # print(f"☐ Проверка шага:     "
-        #       f"{x}, {y}"
-        #       f"{' ' * (4 - (x // 10 + y // 10))}{(x, y) in used_steps}")
-
-    checked_digits = [1, 2, 3, 4, 5, 6, 7, 8]
-    checked_steps = []
-    used_steps = set()
-    extra_quantity = 0
-
-    if game_area.inside_area(start_x, start_y):
-        if "a" in game_area.get_square(start_x, start_y)[0]:
-            checked_digits = game_area.get_square(start_x, start_y)[1]
-        for digit in checked_digits:  # Получаем из направлений координаты
-            checked_steps.append((start_x + digit2delta[digit][0],
-                                  start_y + digit2delta[digit][1]))
-        for step in checked_steps:  # Проверяем координаты
-            check_step(step, (start_x, start_y))
-    for step in used_steps:
-        if ("a" in game_area.get_square(step[0], step[1])[0] or
-            game_area.get_square(step[0], step[1])[0] == "2") and \
-                game_area.get_open(step[0], step[1]):
-            extra_quantity += 1
-    used_steps = list(used_steps)
-    # print_area(used_steps, "Строка", ps="Координаты, куда можно сходить")
-    # mark_fill_squares(list(used_steps), mark_select_color)
-    # show_area(areaSquares, areaOpen)
-    return len(used_steps) - extra_quantity == 0
 
 
 #
 def set_1test_area():
     game_area.clear_area()
     game_area.fill_area(["e2"])
+
+    game_area.set_square(2, 5, ["m5", True])
+
     game_area.set_square(3, 6, ["a2", [5]])
     game_area.set_square(3, 7, ["a2", [4]])
     game_area.set_square(6, 6, ["h"])
@@ -1488,10 +1565,10 @@ def set_1test_area():
     game_area.set_square(6, 10, ["g", [4]])
     game_area.set_square(10, 3, ["q", True])
 
-    # areaSquares[5][8] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
-    # areaSquares[10][8] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
-    # areaSquares[7][2] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
-    # areaSquares[2][6] = ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]]
+    game_area.set_square(8, 5, ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]])
+    game_area.set_square(8, 10, ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]])
+    game_area.set_square(2, 7, ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]])
+    game_area.set_square(6, 2, ["d", [(8, 5), (8, 10), (2, 7), (6, 2)]])
 
     game_area.set_square(9, 10, ["a1", [3]])
     game_area.set_square(10, 9, ["c"])
@@ -1893,12 +1970,14 @@ def set_11test_area():
 
 #
 
+
 set_1test_area()
 
 game_area.print_area("squares", "Массив", ps="Поле")
 game_area.print_area("squares", "Поле", ps="Поле")
 window.update_window(game_area, game_players)
 
+print("\033[36m{}\033[0m".format("\n☸ Игра началась ☸"))
 
 while running:
     pygame.display.update()
@@ -1917,9 +1996,11 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP:
             if time.time() - temp_time < time_tap:
                 if event.button == 1:
-                    mouse_click(event.pos, "B", time.time() - temp_time)  # update_window() внутри print_in_window()
+                    mouse_click(event.pos, game_cycle.get_current(),
+                                time.time() - temp_time)  # update_window() внутри print_in_window()
                 if event.button == 3:
                     mouse_click_cancel_select(event.pos, time.time() - temp_time)
+                    window.update_window(game_area, game_players)
             flag_holdup = False
 
         elif event.type == pygame.MOUSEWHEEL:
@@ -1943,6 +2024,9 @@ while running:
 
             elif event.key == pygame.K_r:
                 game_players.reborn_pawn(game_area)
+
+            elif event.key == pygame.K_n:
+                game_cycle.set_next()
 
             elif event.key == pygame.K_0:
                 set_2test_area()
